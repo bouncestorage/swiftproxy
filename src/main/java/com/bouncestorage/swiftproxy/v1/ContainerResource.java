@@ -1,6 +1,9 @@
-package com.bouncestorage.swiftproxy.v1;
+/*
+ * Copyright (c) Bounce Storage, Inc. All rights reserved.
+ * For more information, please see COPYRIGHT in the top-level directory.
+ */
 
-import com.bouncestorage.swiftproxy.BlobStoreResource;
+package com.bouncestorage.swiftproxy.v1;
 
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.HeaderParam;
@@ -9,8 +12,10 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
 
+import com.bouncestorage.swiftproxy.BlobStoreResource;
+
 @Path("/v1/{account}/{container}")
-public class ContainerResource extends BlobStoreResource {
+public final class ContainerResource extends BlobStoreResource {
 
     @POST
     public Response postContainer(@NotNull @PathParam("container") String container,

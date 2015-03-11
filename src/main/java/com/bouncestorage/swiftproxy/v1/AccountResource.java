@@ -1,9 +1,15 @@
+/*
+ * Copyright (c) Bounce Storage, Inc. All rights reserved.
+ * For more information, please see COPYRIGHT in the top-level directory.
+ */
+
 package com.bouncestorage.swiftproxy.v1;
 
-import com.bouncestorage.swiftproxy.BlobStoreResource;
-import com.bouncestorage.swiftproxy.BounceResourceConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.inject.Singleton;
 import javax.validation.constraints.NotNull;
@@ -13,19 +19,17 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Application;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import com.bouncestorage.swiftproxy.BlobStoreResource;
+import com.bouncestorage.swiftproxy.BounceResourceConfig;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 @Path("/v1/{account}")
-public class AccountResource extends BlobStoreResource {
+public final class AccountResource extends BlobStoreResource {
     private Logger logger = LoggerFactory.getLogger(getClass());
 
     @GET
@@ -58,9 +62,9 @@ public class AccountResource extends BlobStoreResource {
     }
 
     static class ContainerEntry {
-        public String name;
-        public long count;
-        public long bytes;
+        private String name;
+        private long count;
+        private long bytes;
 
         // dummy constructor for jackson
         public ContainerEntry() {
@@ -74,6 +78,10 @@ public class AccountResource extends BlobStoreResource {
         public boolean equals(Object other) {
             return other instanceof ContainerEntry &&
                     name.equals(((ContainerEntry) other).name);
+        }
+
+        public String getName() {
+            return name;
         }
     }
 }

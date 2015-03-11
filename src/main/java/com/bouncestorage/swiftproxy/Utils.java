@@ -5,35 +5,29 @@
 
 package com.bouncestorage.swiftproxy;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.hash.HashCode;
-import com.google.inject.Module;
-import org.jclouds.Constants;
-import org.jclouds.ContextBuilder;
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.blobstore.domain.Blob;
-import org.jclouds.blobstore.domain.BlobBuilder.PayloadBlobBuilder;
-import org.jclouds.blobstore.domain.PageSet;
-import org.jclouds.blobstore.domain.StorageMetadata;
-import org.jclouds.blobstore.domain.StorageType;
-import org.jclouds.blobstore.options.ListContainerOptions;
-import org.jclouds.io.ContentMetadata;
-import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
+import static com.google.common.base.Throwables.propagate;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Date;
 import java.util.Iterator;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
-import static com.google.common.base.Throwables.propagate;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Module;
+
+import org.jclouds.Constants;
+import org.jclouds.ContextBuilder;
+import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.blobstore.domain.PageSet;
+import org.jclouds.blobstore.domain.StorageMetadata;
+import org.jclouds.blobstore.domain.StorageType;
+import org.jclouds.blobstore.options.ListContainerOptions;
+import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
 
 public final class Utils {
     private Utils() {

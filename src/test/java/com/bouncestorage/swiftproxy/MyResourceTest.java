@@ -1,22 +1,21 @@
+/*
+ * Copyright (c) Bounce Storage, Inc. All rights reserved.
+ * For more information, please see COPYRIGHT in the top-level directory.
+ */
+
 package com.bouncestorage.swiftproxy;
+
+import static org.junit.Assert.assertEquals;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
-import com.google.common.io.Resources;
-import org.glassfish.grizzly.http.server.HttpServer;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.InputStream;
-import java.util.Properties;
-
-import static org.junit.Assert.assertEquals;
-
-public class MyResourceTest {
+public final class MyResourceTest {
 
     private SwiftProxy proxy;
     private WebTarget target;

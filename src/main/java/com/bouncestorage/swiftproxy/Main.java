@@ -1,11 +1,9 @@
-package com.bouncestorage.swiftproxy;
+/*
+ * Copyright (c) Bounce Storage, Inc. All rights reserved.
+ * For more information, please see COPYRIGHT in the top-level directory.
+ */
 
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Module;
-import org.jclouds.Constants;
-import org.jclouds.ContextBuilder;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
+package com.bouncestorage.swiftproxy;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -13,11 +11,23 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Properties;
 
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Module;
+
+import org.jclouds.Constants;
+import org.jclouds.ContextBuilder;
+import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
+
 /**
  * Main class.
  *
  */
-public class Main {
+public final class Main {
+    private Main() {
+        // Hide the main method
+    }
+
     /**
      * Main method.
      * @param args

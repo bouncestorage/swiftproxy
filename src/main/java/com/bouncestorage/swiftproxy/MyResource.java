@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) Bounce Storage, Inc. All rights reserved.
+ * For more information, please see COPYRIGHT in the top-level directory.
+ */
+
 package com.bouncestorage.swiftproxy;
 
 import javax.ws.rs.GET;
@@ -7,10 +12,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 /**
- * Root resource (exposed at "myresource" path)
+ * Root resource (exposed at "myresource" path).
  */
 @Path("/myresource")
-public class MyResource {
+public final class MyResource {
 
     /**
      * Method handling HTTP GET requests. The returned object will be sent

@@ -1,22 +1,28 @@
+/*
+ * Copyright (c) Bounce Storage, Inc. All rights reserved.
+ * For more information, please see COPYRIGHT in the top-level directory.
+ */
+
 package com.bouncestorage.swiftproxy;
 
-import javax.ws.rs.ext.ParamConverter;
-import javax.ws.rs.ext.ParamConverterProvider;
-import javax.ws.rs.ext.Provider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
+import javax.ws.rs.ext.ParamConverter;
+import javax.ws.rs.ext.ParamConverterProvider;
+import javax.ws.rs.ext.Provider;
+
 @Provider
-public class OptionalParamProvider implements ParamConverterProvider {
+public final class OptionalParamProvider implements ParamConverterProvider {
     @Override
     public <T> ParamConverter<T> getConverter(Class<T> aClass, Type type, Annotation[] annotations) {
         if (aClass == Optional.class) {
             try {
                 return (ParamConverter<T>) new OptionalParamConverter(type);
-            } catch (NoSuchMethodException|IllegalArgumentException e) {
+            } catch (NoSuchMethodException | IllegalArgumentException e) {
                 return null;
             }
         }

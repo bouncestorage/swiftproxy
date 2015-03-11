@@ -1,27 +1,26 @@
+/*
+ * Copyright (c) Bounce Storage, Inc. All rights reserved.
+ * For more information, please see COPYRIGHT in the top-level directory.
+ */
+
 package com.bouncestorage.swiftproxy;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.inject.Module;
-import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.jclouds.Constants;
-import org.jclouds.ContextBuilder;
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
-import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Throwables.propagate;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Throwables.propagate;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.jclouds.Constants;
+import org.jclouds.blobstore.BlobStore;
 
-public class SwiftProxy {
-    public final static String PROPERTY_ENDPOINT = "swiftproxy.endpoint";
+public final class SwiftProxy {
+    public static final String PROPERTY_ENDPOINT = "swiftproxy.endpoint";
     private HttpServer server;
     private BlobStore blobStore;
     private URI endpoint;
@@ -46,7 +45,7 @@ public class SwiftProxy {
         server.stop();
     }
 
-    public final static class Builder {
+    public static final class Builder {
         private BlobStore blobStore;
         private URI endpoint;
 
@@ -57,13 +56,13 @@ public class SwiftProxy {
             return new Builder();
         }
 
-        public Builder blobStore(BlobStore blobStore) {
-            this.blobStore = checkNotNull(blobStore);
+        public Builder blobStore(BlobStore newBlobStore) {
+            this.blobStore = checkNotNull(newBlobStore);
             return this;
         }
 
-        public Builder endpoint(URI endpoint) {
-            this.endpoint = checkNotNull(endpoint);
+        public Builder endpoint(URI newEndpoint) {
+            this.endpoint = checkNotNull(newEndpoint);
             return this;
         }
 
