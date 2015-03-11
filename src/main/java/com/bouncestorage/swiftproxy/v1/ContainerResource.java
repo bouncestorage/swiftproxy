@@ -7,6 +7,8 @@ package com.bouncestorage.swiftproxy.v1;
 
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.HEAD;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -75,5 +77,21 @@ public final class ContainerResource extends BlobStoreResource {
                     .entity("<html><h1>Conflict</h1><p>There was a conflict when trying to complete your request.</p></html>")
                     .build();
         }
+    }
+
+    @HEAD
+    public Response headContainer(@NotNull @PathParam("container") String container,
+                                  @HeaderParam("X-Auth-Token") String authToken,
+                                  @HeaderParam("X-Newest") @DefaultValue("false") boolean newest) {
+        BlobStore store = getBlobStore();
+        if (!store.containerExists(container)) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        return Response.status(Response.Status.NO_CONTENT)
+                .header("X-Container-Object-Count", 0)
+                .header("X-Container-Bytes-Used", 0)
+                .header("X-Versions-Location", "")
+                .build();
     }
 }

@@ -67,6 +67,22 @@ public final class AccountResourceTest {
         assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
+    @Test
+    public void testHeadContainer() throws Exception {
+        Response resp = headContainer(CONTAINER);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
+
+        createContainer(CONTAINER);
+
+        resp = headContainer(CONTAINER);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
+    }
+
+    Response headContainer(String container) {
+        return target.path(ACCOUNT_PATH + "/" + container)
+                .request().head();
+    }
+
     Response deleteContainer(String container) {
         return target.path(ACCOUNT_PATH + "/" + container)
                 .request().delete();
