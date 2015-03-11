@@ -7,12 +7,10 @@ package com.bouncestorage.swiftproxy.v1;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.SwiftProxy;
 import com.bouncestorage.swiftproxy.TestUtils;
@@ -21,7 +19,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public final class AccountResourceTest {
+public final class ContainerResourceTest {
     private static final String CONTAINER = "testContainer";
     private SwiftProxy proxy;
     private WebTarget target;
@@ -41,23 +39,29 @@ public final class AccountResourceTest {
     }
 
     @Test
-    public void testEmptyContainers() throws Exception {
-        List<AccountResource.ContainerEntry> entries = listContainers();
-        assertThat(entries).isEmpty();
+    public void testDeleteContainer() throws Exception {
+        Response resp = TestUtils.deleteContainer(target, CONTAINER);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
+
+        TestUtils.createContainer(target, CONTAINER);
+
+        resp = TestUtils.deleteContainer(target, CONTAINER);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
     @Test
-    public void testOneContainer() throws Exception {
+    public void testHeadContainer() throws Exception {
+        Response resp = headContainer(CONTAINER);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
+
         TestUtils.createContainer(target, CONTAINER);
 
-        List<AccountResource.ContainerEntry> entries = listContainers();
-        assertThat(entries).containsOnly(new AccountResource.ContainerEntry(CONTAINER));
+        resp = headContainer(CONTAINER);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    List<AccountResource.ContainerEntry> listContainers() {
-        return target.path(TestUtils.ACCOUNT_PATH)
-                .queryParam("format", "json")
-                .request().get(new GenericType<List<AccountResource.ContainerEntry>>() {
-                });
+    Response headContainer(String container) {
+        return target.path(TestUtils.ACCOUNT_PATH + "/" + container)
+                .request().head();
     }
 }
