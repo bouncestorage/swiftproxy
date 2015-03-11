@@ -42,7 +42,7 @@ public final class SwiftProxy {
     }
 
     public void stop() {
-        server.stop();
+        server.shutdownNow();
     }
 
     public static final class Builder {
