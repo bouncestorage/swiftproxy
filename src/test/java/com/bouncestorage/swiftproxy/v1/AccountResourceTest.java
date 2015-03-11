@@ -13,6 +13,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.SwiftProxy;
 import com.bouncestorage.swiftproxy.TestUtils;
@@ -49,14 +50,35 @@ public final class AccountResourceTest {
 
     @Test
     public void testOneContainer() throws Exception {
-        String resp = target.path(ACCOUNT_PATH + "/" + CONTAINER)
-                .request().post(null, String.class);
-        assertThat(resp).isEmpty();
+        createContainer(CONTAINER);
+
         List<AccountResource.ContainerEntry> entries = listContainers();
         assertThat(entries).containsOnly(new AccountResource.ContainerEntry(CONTAINER));
     }
 
-    private List<AccountResource.ContainerEntry> listContainers() {
+    @Test
+    public void testDeleteContainer() throws Exception {
+        Response resp = deleteContainer(CONTAINER);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
+
+        createContainer(CONTAINER);
+
+        resp = deleteContainer(CONTAINER);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
+    }
+
+    Response deleteContainer(String container) {
+        return target.path(ACCOUNT_PATH + "/" + container)
+                .request().delete();
+    }
+
+    void createContainer(String container) {
+        Response resp = target.path(ACCOUNT_PATH + "/" + container)
+                .request().post(null);
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.CREATED.getStatusCode());
+    }
+
+    List<AccountResource.ContainerEntry> listContainers() {
         return target.path(ACCOUNT_PATH)
                 .queryParam("format", "json")
                 .request().get(new GenericType<List<AccountResource.ContainerEntry>>() {
