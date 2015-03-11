@@ -7,7 +7,6 @@ package com.bouncestorage.swiftproxy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
@@ -23,7 +22,7 @@ public final class TestUtils {
         // Hide the constructor for a Utils class
     }
 
-    public static SwiftProxy setupAndStartProxy() throws IOException {
+    public static SwiftProxy setupAndStartProxy() throws Exception {
         Properties properties = new Properties();
         try (InputStream is = Resources.asByteSource(Resources.getResource(
                 "swiftproxy.conf")).openStream()) {
