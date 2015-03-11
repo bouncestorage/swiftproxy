@@ -4,16 +4,19 @@
  */
 
 package com.bouncestorage.swiftproxy.v1;
-import com.bouncestorage.swiftproxy.BlobStoreResource;
-import org.jclouds.blobstore.BlobStore;
 
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
+
+import com.bouncestorage.swiftproxy.BlobStoreResource;
+
+import org.jclouds.blobstore.BlobStore;
 
 @Path("/v1/{account}/{container}")
 public final class ContainerResource extends BlobStoreResource {
@@ -30,7 +33,31 @@ public final class ContainerResource extends BlobStoreResource {
                                   @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                                   @HeaderParam("If-None-Match") String ifNoneMatch) {
         getBlobStore().createContainerInLocation(null, container);
-        return Response.status(Response.Status.CREATED).build();
+        return Response.status(Response.Status.NO_CONTENT).build();
+    }
+
+    @PUT
+    public Response putContainer(@NotNull @PathParam("container") String container,
+                                  @HeaderParam("X-Auth-Token") String authToken,
+                                  @HeaderParam("X-Container-Read") String readACL,
+                                  @HeaderParam("X-Container-write") String writeACL,
+                                  @HeaderParam("X-Container-Sync-To") String syncTo,
+                                  @HeaderParam("X-Container-Sync-Key") String syncKey,
+                                  @HeaderParam("X-Versions-Location") String versionsLocation,
+                                  @HeaderParam("Content-Type") String contentType,
+                                  @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
+                                  @HeaderParam("If-None-Match") String ifNoneMatch) {
+        Response.Status status;
+        BlobStore store = getBlobStore();
+
+        if (store.containerExists(container)) {
+            status = Response.Status.NO_CONTENT;
+        } else {
+            store.createContainerInLocation(null, container);
+            status = Response.Status.CREATED;
+        }
+
+        return Response.status(status).build();
     }
 
     @DELETE

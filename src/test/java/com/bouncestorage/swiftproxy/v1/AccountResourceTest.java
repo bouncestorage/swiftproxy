@@ -75,7 +75,7 @@ public final class AccountResourceTest {
     void createContainer(String container) {
         Response resp = target.path(ACCOUNT_PATH + "/" + container)
                 .request().post(null);
-        assertThat(resp.getStatus()).isEqualTo(Response.Status.CREATED.getStatusCode());
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
     List<AccountResource.ContainerEntry> listContainers() {
