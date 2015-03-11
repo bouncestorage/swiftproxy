@@ -77,8 +77,8 @@ public final class Main {
                 .endpoint(new URI(proxyEndpoint))
                 .build();
         proxy.start();
-        System.out.println(String.format("Jersey app started with WADL available at "
-                + "%sapplication.wadl\nHit enter to stop it...", proxy.getEndpoint()));
+        System.out.format("Swift proxy listening on port %d\n", proxy.getPort());
+        System.out.println("Hit enter to stop it...");
         System.in.read();
         proxy.stop();
     }

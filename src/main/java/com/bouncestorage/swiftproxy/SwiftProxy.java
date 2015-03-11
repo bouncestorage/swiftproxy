@@ -37,12 +37,18 @@ public final class SwiftProxy {
         return endpoint;
     }
 
-    public void start() throws IOException {
+    public void start() throws IOException, URISyntaxException {
         server.start();
+        endpoint = new URI(endpoint.getScheme(), endpoint.getUserInfo(), endpoint.getHost(),
+                getPort(), endpoint.getPath(), endpoint.getQuery(), endpoint.getFragment());
     }
 
     public void stop() {
         server.shutdownNow();
+    }
+
+    public int getPort() {
+        return server.getListeners().stream().findAny().map(n -> n.getPort()).orElse(0);
     }
 
     public static final class Builder {
