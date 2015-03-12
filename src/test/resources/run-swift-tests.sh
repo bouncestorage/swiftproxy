@@ -5,8 +5,10 @@ set -o errexit
 set -o nounset
 
 pushd swift-tests
-#./virtualenv/bin/pip install -r requirements.txt
-#./virtualenv/bin/pip install -r test-requirements.txt
+virtualenv --no-site-packages --distribute virtualenv
+
+./virtualenv/bin/pip install -r requirements.txt
+./virtualenv/bin/pip install -r test-requirements.txt
 
 mkdir -p ./virtualenv/etc/swift
 cat > ./virtualenv/etc/swift/test.conf <<EOF
@@ -42,6 +44,6 @@ EOF
 
 
 cd test/functional
-SWIFT_TEST_CONFIG_FILE=../../virtualenv/etc/swift/test.conf PYTHONPATH=. ../../virtualenv/bin/nosetests
+SWIFT_TEST_CONFIG_FILE=../../virtualenv/etc/swift/test.conf ../../virtualenv/bin/nosetests
 
 exit 0
