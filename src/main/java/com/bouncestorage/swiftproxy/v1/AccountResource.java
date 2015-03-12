@@ -15,6 +15,7 @@ import javax.inject.Singleton;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.HEAD;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -59,6 +60,13 @@ public final class AccountResource extends BlobStoreResource {
         return Response.ok(entries, BounceResourceConfig.getMediaType(format))
                 .header("X-Account-Container-Count", entries.size())
                 .build();
+    }
+
+    @HEAD
+    public Response headAccount(@NotNull @PathParam("account") String account,
+                                @HeaderParam("X-Auth-Token") String authToken,
+                                @HeaderParam("X-Newest") boolean newest) {
+        return Response.noContent().build();
     }
 
     static class ContainerEntry {

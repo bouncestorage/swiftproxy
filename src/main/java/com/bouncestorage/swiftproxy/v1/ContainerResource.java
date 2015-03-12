@@ -14,6 +14,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.BlobStoreResource;
@@ -31,9 +32,9 @@ public final class ContainerResource extends BlobStoreResource {
                                   @HeaderParam("X-Container-Sync-To") String syncTo,
                                   @HeaderParam("X-Container-Sync-Key") String syncKey,
                                   @HeaderParam("X-Versions-Location") String versionsLocation,
-                                  @HeaderParam("Content-Type") String contentType,
+                                  @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                   @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
-                                  @HeaderParam("If-None-Match") String ifNoneMatch) {
+                                  @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch) {
         getBlobStore().createContainerInLocation(null, container);
         return Response.status(Response.Status.NO_CONTENT).build();
     }
@@ -46,9 +47,9 @@ public final class ContainerResource extends BlobStoreResource {
                                   @HeaderParam("X-Container-Sync-To") String syncTo,
                                   @HeaderParam("X-Container-Sync-Key") String syncKey,
                                   @HeaderParam("X-Versions-Location") String versionsLocation,
-                                  @HeaderParam("Content-Type") String contentType,
+                                  @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                   @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
-                                  @HeaderParam("If-None-Match") String ifNoneMatch) {
+                                  @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch) {
         Response.Status status;
         BlobStore store = getBlobStore();
 

@@ -13,6 +13,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.SwiftProxy;
 import com.bouncestorage.swiftproxy.TestUtils;
@@ -52,6 +53,12 @@ public final class AccountResourceTest {
 
         List<AccountResource.ContainerEntry> entries = listContainers();
         assertThat(entries).containsOnly(new AccountResource.ContainerEntry(CONTAINER));
+    }
+
+    @Test
+    public void testHead() throws Exception {
+        Response response = target.path(TestUtils.ACCOUNT_PATH).queryParam("format", "json").request().head();
+        assertThat(response.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
     List<AccountResource.ContainerEntry> listContainers() {
