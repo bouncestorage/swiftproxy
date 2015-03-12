@@ -7,6 +7,7 @@ package com.bouncestorage.swiftproxy;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.net.URI;
 import java.util.Map;
 
 import javax.ws.rs.core.MediaType;
@@ -24,6 +25,7 @@ public final class BounceResourceConfig extends ResourceConfig {
     );
 
     private final BlobStore blobStore;
+    private URI endPoint;
 
     BounceResourceConfig(BlobStore blobStore) {
         this.blobStore = checkNotNull(blobStore);
@@ -36,5 +38,13 @@ public final class BounceResourceConfig extends ResourceConfig {
 
     public static MediaType getMediaType(String format) {
         return swiftFormatToMediaType.get(format);
+    }
+
+    public void setEndPoint(URI endPoint) {
+        this.endPoint = endPoint;
+    }
+
+    public URI getEndPoint() {
+        return endPoint;
     }
 }

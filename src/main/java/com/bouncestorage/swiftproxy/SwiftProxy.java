@@ -15,7 +15,6 @@ import java.util.Properties;
 
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
 import org.jclouds.Constants;
 import org.jclouds.blobstore.BlobStore;
 
@@ -24,12 +23,13 @@ public final class SwiftProxy {
     private HttpServer server;
     private BlobStore blobStore;
     private URI endpoint;
+    private final BounceResourceConfig rc;
 
     public SwiftProxy(BlobStore blobStore, URI endpoint) {
         this.blobStore = checkNotNull(blobStore);
         this.endpoint = checkNotNull(endpoint);
 
-        final ResourceConfig rc = new BounceResourceConfig(blobStore);
+        rc = new BounceResourceConfig(blobStore);
         server = GrizzlyHttpServerFactory.createHttpServer(endpoint, rc, false);
     }
 
@@ -41,6 +41,7 @@ public final class SwiftProxy {
         server.start();
         endpoint = new URI(endpoint.getScheme(), endpoint.getUserInfo(), endpoint.getHost(),
                 getPort(), endpoint.getPath(), endpoint.getQuery(), endpoint.getFragment());
+        rc.setEndPoint(endpoint);
     }
 
     public void stop() {
