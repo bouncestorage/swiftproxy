@@ -4,11 +4,32 @@ set -o xtrace
 set -o errexit
 set -o nounset
 
+PROXY_BIN="${PWD}/target/swift-proxy-1.0-SNAPSHOT-jar-with-dependencies.jar"
+PROXY_PORT="8080"
+TEST_CONF="${PWD}/src/main/resources/swiftproxy.conf"
+
+java -jar $PROXY_BIN --properties $TEST_CONF &
+PROXY_PID=$!
+
+trap "kill $PROXY_PID" EXIT
+
 pushd swift-tests
 virtualenv --no-site-packages --distribute virtualenv
 
 ./virtualenv/bin/pip install -r requirements.txt
 ./virtualenv/bin/pip install -r test-requirements.txt
+
+# wait for SwiftProxy to start
+for i in $(seq 30);
+do
+    if exec 3<>"/dev/tcp/localhost/8080";
+    then
+        exec 3<&-  # Close for read
+        exec 3>&-  # Close for write
+        break
+    fi
+    sleep 1
+done
 
 mkdir -p ./virtualenv/etc/swift
 cat > ./virtualenv/etc/swift/test.conf <<EOF
@@ -45,5 +66,6 @@ EOF
 
 cd test/functional
 SWIFT_TEST_CONFIG_FILE=../../virtualenv/etc/swift/test.conf ../../virtualenv/bin/nosetests
+EXIT_CODE=$?
 
 exit 0

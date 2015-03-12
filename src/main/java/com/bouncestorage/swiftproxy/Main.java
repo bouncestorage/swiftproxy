@@ -78,9 +78,7 @@ public final class Main {
                 .build();
         proxy.start();
         System.out.format("Swift proxy listening on port %d\n", proxy.getPort());
-        System.out.println("Hit enter to stop it...");
-        System.in.read();
-        proxy.stop();
+        Thread.currentThread().join();
     }
 }
 
