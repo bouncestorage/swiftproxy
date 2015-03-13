@@ -8,7 +8,7 @@ PROXY_BIN="${PWD}/target/swift-proxy-1.0-SNAPSHOT-jar-with-dependencies.jar"
 PROXY_PORT="8080"
 TEST_CONF="${PWD}/src/main/resources/swiftproxy.conf"
 
-java -jar $PROXY_BIN --properties $TEST_CONF &
+stdbuf -oL -eL java -jar $PROXY_BIN --properties $TEST_CONF &
 PROXY_PID=$!
 
 trap "kill $PROXY_PID" EXIT
@@ -64,8 +64,14 @@ allow_account_management = false
 EOF
 
 
-cd test/functional
-SWIFT_TEST_CONFIG_FILE=../../virtualenv/etc/swift/test.conf ../../virtualenv/bin/nosetests
-EXIT_CODE=$?
+#cd test/functional
+#SWIFT_TEST_CONFIG_FILE=../../virtualenv/etc/swift/test.conf ../../virtualenv/bin/nosetests
+SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests \
+    test.functional.tests:TestAccountEnv \
+    test.functional.tests:TestAccountDev \
+    test.functional.tests:TestAccountDevUTF8 \
+    test.functional.tests:TestAccountNoContainersEnv \
+    test.functional.tests:TestAccountNoContainers \
 
-exit 0
+EXIT_CODE=$?
+exit $?

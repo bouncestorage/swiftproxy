@@ -20,18 +20,21 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 
 import com.bouncestorage.swiftproxy.BlobStoreResource;
 import com.bouncestorage.swiftproxy.BounceResourceConfig;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Singleton
 @Path("/v1/{account}")
 public final class AccountResource extends BlobStoreResource {
-    private Logger logger = LoggerFactory.getLogger(getClass());
 
     @GET
     public Response getAccount(@NotNull @PathParam("account") String account,
@@ -57,7 +60,12 @@ public final class AccountResource extends BlobStoreResource {
                 .map(name -> new ContainerEntry(name))
                 .collect(Collectors.toList());
 
-        return Response.ok(entries, BounceResourceConfig.getMediaType(format))
+        MediaType formatType = BounceResourceConfig.getMediaType(format);
+
+        Account root = new Account();
+        root.name = account;
+        root.container = entries;
+        return output(root, entries, formatType)
                 .header("X-Account-Container-Count", entries.size())
                 .build();
     }
@@ -69,16 +77,32 @@ public final class AccountResource extends BlobStoreResource {
         return Response.noContent().build();
     }
 
-    static class ContainerEntry {
+    @XmlRootElement(name = "account")
+    @XmlType
+    static class Account {
+        @XmlElement
+        List<ContainerEntry> container;
+        @XmlAttribute
         private String name;
+    }
+
+    @XmlRootElement(name = "container")
+    @XmlType
+    static class ContainerEntry {
+        @XmlElement
+        private String name;
+        @XmlElement
         private long count;
+        @XmlElement
         private long bytes;
 
-        // dummy constructor for jackson
+        // for jackson XML
         public ContainerEntry() {
+
         }
 
-        public ContainerEntry(String name) {
+        @JsonCreator
+        public ContainerEntry(@JsonProperty("name") String name) {
             this.name = checkNotNull(name);
         }
 
@@ -89,6 +113,11 @@ public final class AccountResource extends BlobStoreResource {
         }
 
         public String getName() {
+            return name;
+        }
+
+        @Override
+        public String toString() {
             return name;
         }
     }
