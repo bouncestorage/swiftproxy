@@ -64,14 +64,18 @@ allow_account_management = false
 EOF
 
 
-#cd test/functional
-#SWIFT_TEST_CONFIG_FILE=../../virtualenv/etc/swift/test.conf ../../virtualenv/bin/nosetests
-SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests \
-    test.functional.tests:TestAccountEnv \
-    test.functional.tests:TestAccountDev \
-    test.functional.tests:TestAccountDevUTF8 \
-    test.functional.tests:TestAccountNoContainersEnv \
-    test.functional.tests:TestAccountNoContainers \
+if [ $# == 0 ]; then
+    SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests \
+        test.functional.tests:TestAccountEnv \
+        test.functional.tests:TestAccountDev \
+        test.functional.tests:TestAccountDevUTF8 \
+        test.functional.tests:TestAccountNoContainersEnv \
+        test.functional.tests:TestAccountNoContainers \
+        test.functional.tests:TestAccountNoContainersUTF8 \
+
+else
+    SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests $@
+fi
 
 EXIT_CODE=$?
 exit $?
