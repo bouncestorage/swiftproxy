@@ -125,6 +125,8 @@ public final class ObjectResource extends BlobStoreResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
+        store.removeBlob(container, objectName);
+
         return Response.noContent()
                 .type(meta.getContentMetadata().getContentType())
                 .build();
