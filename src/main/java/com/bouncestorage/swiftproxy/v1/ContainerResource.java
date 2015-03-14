@@ -5,21 +5,40 @@
 
 package com.bouncestorage.swiftproxy.v1;
 
+import static java.util.Objects.requireNonNull;
+
+import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
+import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 
 import com.bouncestorage.swiftproxy.BlobStoreResource;
+import com.bouncestorage.swiftproxy.BounceResourceConfig;
+import com.bouncestorage.swiftproxy.Utils;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.options.ListContainerOptions;
 
 @Path("/v1/{account}/{container}")
 public final class ContainerResource extends BlobStoreResource {
@@ -94,5 +113,96 @@ public final class ContainerResource extends BlobStoreResource {
                 .header("X-Container-Bytes-Used", 0)
                 .header("X-Versions-Location", "")
                 .build();
+    }
+
+    @GET
+    public Response listContainer(@NotNull @PathParam("container") String container,
+                                  @HeaderParam("X-Auth-Token") String authToken,
+                                  @QueryParam("limit") Integer limit,
+                                  @QueryParam("marker") String marker,
+                                  @QueryParam("end_marker") String endMarker,
+                                  @QueryParam("format") @DefaultValue("plain") String format,
+                                  @QueryParam("prefix") String prefix,
+                                  @QueryParam("delimiter") String delimiter,
+                                  @QueryParam("path") String path,
+                                  @HeaderParam("X-Newest") @DefaultValue("false") boolean newest,
+                                  @HeaderParam("Accept") String accept) {
+        BlobStore store = getBlobStore();
+        if (!store.containerExists(container)) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        ListContainerOptions options = new ListContainerOptions().withDetails();
+        if (marker != null) {
+            options.afterMarker(marker);
+        }
+        if (prefix != null && "/".equals(delimiter)) {
+            options.inDirectory(prefix);
+        }
+        if (path != null) {
+            options.inDirectory(path);
+        }
+        List<ObjectEntry> entries = StreamSupport.stream(
+                Utils.crawlBlobStore(store, container, options).spliterator(), false)
+                .filter(meta -> endMarker == null || meta.getName().compareTo(endMarker) < 0)
+                .limit(limit == null ? Integer.MAX_VALUE : limit)
+                .map(meta -> new ObjectEntry(meta.getName(), meta.getETag(), meta.getSize(),
+                        MediaType.APPLICATION_OCTET_STREAM, meta.getLastModified()))
+                .collect(Collectors.toList());
+
+        MediaType formatType = BounceResourceConfig.getMediaType(format);
+
+        ContainerRoot root = new ContainerRoot();
+        root.name = container;
+        root.object = entries;
+        return output(root, entries, formatType)
+                .header("X-Container-Object-Count", entries.size())
+                .build();
+
+    }
+
+    @XmlRootElement(name = "container")
+    @XmlType
+    static class ContainerRoot {
+        @XmlElement
+        List<ObjectEntry> object;
+        @XmlAttribute
+        private String name;
+    }
+
+    @XmlRootElement(name = "object")
+    @XmlType
+    static class ObjectEntry {
+        @XmlElement
+        String name;
+        @XmlElement
+        String hash;
+        @XmlElement
+        long bytes;
+        @XmlElement
+        String content_type;
+        @XmlElement
+        Date last_modified;
+
+        // dummy
+        public ObjectEntry() {
+        }
+
+        @JsonCreator
+        public ObjectEntry(@JsonProperty("name") String name,
+                           @JsonProperty("hash") String hash,
+                           @JsonProperty("bytes") long bytes,
+                           @JsonProperty("content_type") String content_type,
+                           @JsonProperty("last_modified") Date last_modified) {
+            this.name = requireNonNull(name);
+            this.hash = requireNonNull(hash);
+            this.bytes = bytes;
+            this.content_type = requireNonNull(content_type);
+            this.last_modified = requireNonNull(last_modified);
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
     }
 }

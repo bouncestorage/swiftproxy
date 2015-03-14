@@ -4,17 +4,20 @@ set -o xtrace
 set -o errexit
 set -o nounset
 
-PROXY_BIN="${PWD}/target/swift-proxy-1.0-SNAPSHOT-jar-with-dependencies.jar"
+PROXY_BIN="java -cp target/classes/:./target/swift-proxy-1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
 PROXY_PORT="8080"
 TEST_CONF="${PWD}/src/main/resources/swiftproxy.conf"
 
-stdbuf -oL -eL java -jar $PROXY_BIN --properties $TEST_CONF &
+stdbuf -oL -eL $PROXY_BIN --properties $TEST_CONF &
 PROXY_PID=$!
 
 trap "kill $PROXY_PID" EXIT
 
 pushd swift-tests
-virtualenv --no-site-packages --distribute virtualenv
+
+if [ ! -e ./virtualenv/bin/pip ]; then
+    virtualenv --no-site-packages --distribute virtualenv
+fi
 
 ./virtualenv/bin/pip install -r requirements.txt
 ./virtualenv/bin/pip install -r test-requirements.txt
@@ -65,16 +68,19 @@ EOF
 
 
 if [ $# == 0 ]; then
-    SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests \
+    SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v \
         test.functional.tests:TestAccountEnv \
         test.functional.tests:TestAccountDev \
         test.functional.tests:TestAccountDevUTF8 \
         test.functional.tests:TestAccountNoContainersEnv \
         test.functional.tests:TestAccountNoContainers \
         test.functional.tests:TestAccountNoContainersUTF8 \
+        test.functional.tests:TestContainerEnv \
+        test.functional.tests:TestContainerDev \
+        test.functional.tests:TestContainerDevUTF8 \
 
 else
-    SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests $@
+    SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
 fi
 
 EXIT_CODE=$?

@@ -14,12 +14,16 @@ import java.net.URISyntaxException;
 import java.util.Properties;
 
 import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.jersey.filter.LoggingFilter;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.jclouds.Constants;
 import org.jclouds.blobstore.BlobStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SwiftProxy {
     public static final String PROPERTY_ENDPOINT = "swiftproxy.endpoint";
+    private Logger logger = LoggerFactory.getLogger(getClass());
     private HttpServer server;
     private BlobStore blobStore;
     private URI endpoint;
@@ -30,6 +34,9 @@ public final class SwiftProxy {
         this.endpoint = checkNotNull(endpoint);
 
         rc = new BounceResourceConfig(blobStore);
+        if (false) {
+            rc.register(new LoggingFilter(java.util.logging.Logger.getGlobal(), true));
+        }
         server = GrizzlyHttpServerFactory.createHttpServer(endpoint, rc, false);
     }
 

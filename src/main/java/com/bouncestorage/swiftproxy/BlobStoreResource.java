@@ -47,7 +47,7 @@ public abstract class BlobStoreResource {
                     format, new MultivaluedHashMap<String, Object>(),
                     baos);
         } catch (Throwable e) {
-            logger.error("could not serialize object", e);
+            logger.error(String.format("could not serialize %s to format %s", root, format), e);
             throw propagate(e);
         }
 
@@ -62,10 +62,12 @@ public abstract class BlobStoreResource {
                 return Response.noContent();
             }
             if (format == MediaType.APPLICATION_XML_TYPE) {
+                debugWrite(root, format);
                 return Response.ok(root, format);
             }
         }
 
+        debugWrite(value, format);
         return Response.ok(value, format);
     }
 }
