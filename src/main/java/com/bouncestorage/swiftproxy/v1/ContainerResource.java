@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import javax.validation.constraints.NotNull;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -43,6 +44,14 @@ import org.jclouds.blobstore.options.ListContainerOptions;
 @Path("/v1/{account}/{container}")
 public final class ContainerResource extends BlobStoreResource {
 
+    private void createContainer(String container) {
+        if (container.length() > 256) {
+            throw new BadRequestException("container name too long");
+        }
+
+        getBlobStore().createContainerInLocation(null, container);
+    }
+
     @POST
     public Response postContainer(@NotNull @PathParam("container") String container,
                                   @HeaderParam("X-Auth-Token") String authToken,
@@ -54,7 +63,7 @@ public final class ContainerResource extends BlobStoreResource {
                                   @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                   @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                                   @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch) {
-        getBlobStore().createContainerInLocation(null, container);
+        createContainer(container);
         return Response.status(Response.Status.NO_CONTENT).build();
     }
 
@@ -75,7 +84,7 @@ public final class ContainerResource extends BlobStoreResource {
         if (store.containerExists(container)) {
             status = Response.Status.NO_CONTENT;
         } else {
-            store.createContainerInLocation(null, container);
+            createContainer(container);
             status = Response.Status.CREATED;
         }
 

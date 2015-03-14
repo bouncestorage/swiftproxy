@@ -11,6 +11,7 @@ import java.util.Date;
 
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
 import javax.ws.rs.HeaderParam;
@@ -25,6 +26,7 @@ import javax.ws.rs.core.Response;
 import com.bouncestorage.swiftproxy.BlobStoreResource;
 
 import org.glassfish.grizzly.http.server.Request;
+import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.BlobMetadata;
@@ -109,6 +111,23 @@ public final class ObjectResource extends BlobStoreResource {
 
         // TODO: We should be sending a 204 (No Content), but cannot due to https://java.net/jira/browse/JERSEY-2822
         return addObjectHeaders(meta, Response.ok()).build();
+    }
+
+    @DELETE
+    public Response deleteObject(@NotNull @PathParam("account") String account,
+                                 @NotNull @PathParam("container") String container,
+                                 @NotNull @PathParam("object") String objectName,
+                                 @QueryParam("multipart-manifest") String multipartManifest,
+                                 @HeaderParam("X-Auth-Token") String authToken) {
+        BlobStore store = getBlobStore();
+        BlobMetadata meta = store.blobMetadata(container, objectName);
+        if (meta == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        return Response.noContent()
+                .type(meta.getContentMetadata().getContentType())
+                .build();
     }
 
     private Response.ResponseBuilder addObjectHeaders(BlobMetadata metaData, Response.ResponseBuilder responseBuilder) {

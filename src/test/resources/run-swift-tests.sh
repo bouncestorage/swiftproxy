@@ -78,6 +78,7 @@ if [ $# == 0 ]; then
         test.functional.tests:TestContainerEnv \
         test.functional.tests:TestContainerDev \
         test.functional.tests:TestContainerDevUTF8 \
+        test.functional.tests:TestContainer.testContainerNameLimit \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
