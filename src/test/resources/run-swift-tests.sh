@@ -66,9 +66,13 @@ allow_account_management = false
 
 EOF
 
+export PYTHONUNBUFFERED=1
+export NOSE_NOCAPTURE=1
+export NOSE_NOLOGCAPTURE=1
 
 if [ $# == 0 ]; then
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v \
+        --logging-level=debug \
         test.functional.tests:TestAccountEnv \
         test.functional.tests:TestAccountDev \
         test.functional.tests:TestAccountDevUTF8 \
@@ -83,6 +87,7 @@ if [ $# == 0 ]; then
         test.functional.tests:TestContainer.testPrefixAndLimit \
         test.functional.tests:TestContainer.testCreate \
         test.functional.tests:TestContainer.testContainerFileListOnContainerThatDoesNotExist \
+        test.functional.tests:TestContainer.testCreateOnExisting
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@

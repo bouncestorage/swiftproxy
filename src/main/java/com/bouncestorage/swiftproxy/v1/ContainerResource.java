@@ -82,7 +82,7 @@ public final class ContainerResource extends BlobStoreResource {
         BlobStore store = getBlobStore();
 
         if (store.containerExists(container)) {
-            status = Response.Status.NO_CONTENT;
+            status = Response.Status.ACCEPTED;
         } else {
             createContainer(container);
             status = Response.Status.CREATED;
