@@ -87,7 +87,8 @@ if [ $# == 0 ]; then
         test.functional.tests:TestContainer.testPrefixAndLimit \
         test.functional.tests:TestContainer.testCreate \
         test.functional.tests:TestContainer.testContainerFileListOnContainerThatDoesNotExist \
-        test.functional.tests:TestContainer.testCreateOnExisting
+        test.functional.tests:TestContainer.testCreateOnExisting \
+        test.functional.tests:TestContainer.testSlashInName \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@

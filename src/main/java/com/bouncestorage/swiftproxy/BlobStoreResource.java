@@ -34,6 +34,12 @@ public abstract class BlobStoreResource {
         return ((BounceResourceConfig) application).getBlobStore();
     }
 
+    protected static Response notFound() {
+        return Response.status(Response.Status.NOT_FOUND)
+                .entity("<html><h1>Not Found</h1><p>The resource could not be found.</p></html>")
+                .build();
+    }
+
     private void debugWrite(Object root, MediaType format) {
 
         MessageBodyWriter messageBodyWriter =

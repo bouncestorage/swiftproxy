@@ -27,6 +27,7 @@ import com.bouncestorage.swiftproxy.BlobStoreResource;
 
 import org.glassfish.grizzly.http.server.Request;
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.BlobMetadata;
@@ -89,11 +90,15 @@ public final class ObjectResource extends BlobStoreResource {
                     .payload(is)
                     .contentLength(contentLength)
                     .contentType(contentType);
-            String remoteETag = getBlobStore().putBlob(container, builder.build());
-            return Response.status(Response.Status.CREATED).header(HttpHeaders.ETAG, remoteETag)
-                    .header(HttpHeaders.CONTENT_LENGTH, 0)
-                    .header(HttpHeaders.CONTENT_TYPE, contentType)
-                    .header(HttpHeaders.DATE, new Date()).build();
+            try {
+                String remoteETag = getBlobStore().putBlob(container, builder.build());
+                return Response.status(Response.Status.CREATED).header(HttpHeaders.ETAG, remoteETag)
+                        .header(HttpHeaders.CONTENT_LENGTH, 0)
+                        .header(HttpHeaders.CONTENT_TYPE, contentType)
+                        .header(HttpHeaders.DATE, new Date()).build();
+            } catch (ContainerNotFoundException e) {
+                return notFound();
+            }
         } catch (IOException e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
