@@ -80,6 +80,9 @@ if [ $# == 0 ]; then
         test.functional.tests:TestContainerDevUTF8 \
         test.functional.tests:TestContainer.testContainerNameLimit \
         test.functional.tests:TestContainer.testFileThenContainerDelete \
+        test.functional.tests:TestContainer.testPrefixAndLimit \
+        test.functional.tests:TestContainer.testCreate \
+        test.functional.tests:TestContainer.testContainerFileListOnContainerThatDoesNotExist \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@

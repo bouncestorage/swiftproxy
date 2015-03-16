@@ -144,7 +144,7 @@ public final class ContainerResource extends BlobStoreResource {
         if (marker != null) {
             options.afterMarker(marker);
         }
-        if (prefix != null && "/".equals(delimiter)) {
+        if (prefix != null && ("/".equals(delimiter) || prefix.endsWith("/"))) {
             options.inDirectory(prefix);
         }
         if (path != null) {
