@@ -39,6 +39,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.ListContainerOptions;
 
 @Path("/v1/{account}/{container}")
@@ -124,6 +125,10 @@ public final class ContainerResource extends BlobStoreResource {
                 .build();
     }
 
+    private String contentType(StorageMetadata meta) {
+        return meta.getName().endsWith("/") ? "application/directory" : MediaType.APPLICATION_OCTET_STREAM;
+
+    }
     @GET
     public Response listContainer(@NotNull @PathParam("container") String container,
                                   @HeaderParam("X-Auth-Token") String authToken,
@@ -147,7 +152,7 @@ public final class ContainerResource extends BlobStoreResource {
         if (prefix != null && ("/".equals(delimiter) || prefix.endsWith("/"))) {
             options.inDirectory(prefix);
         }
-        if (path != null) {
+        if (path != null && !path.equals("/")) {
             options.inDirectory(path);
         }
         List<ObjectEntry> entries = StreamSupport.stream(
@@ -155,7 +160,7 @@ public final class ContainerResource extends BlobStoreResource {
                 .filter(meta -> endMarker == null || meta.getName().compareTo(endMarker) < 0)
                 .limit(limit == null ? Integer.MAX_VALUE : limit)
                 .map(meta -> new ObjectEntry(meta.getName(), meta.getETag(), meta.getSize(),
-                        MediaType.APPLICATION_OCTET_STREAM, meta.getLastModified()))
+                        contentType(meta), meta.getLastModified()))
                 .collect(Collectors.toList());
 
         MediaType formatType = BounceResourceConfig.getMediaType(format);

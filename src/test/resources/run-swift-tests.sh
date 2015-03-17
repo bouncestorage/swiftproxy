@@ -89,6 +89,20 @@ if [ $# == 0 ]; then
         test.functional.tests:TestContainer.testContainerFileListOnContainerThatDoesNotExist \
         test.functional.tests:TestContainer.testCreateOnExisting \
         test.functional.tests:TestContainer.testSlashInName \
+        test.functional.tests:TestContainer.testDelete \
+        test.functional.tests:TestContainer.testDeleteOnContainerThatDoesNotExist \
+        test.functional.tests:TestContainer.testDeleteOnContainerWithFiles \
+        test.functional.tests:TestContainer.testFileCreateInContainerThatDoesNotExist \
+        test.functional.tests:TestContainer.testLastFileMarker \
+        test.functional.tests:TestContainer.testContainerFileList \
+        test.functional.tests:TestContainer.testMarkerLimitFileList \
+        test.functional.tests:TestContainer.testFileOrder \
+        test.functional.tests:TestContainer.testContainerInfoOnContainerThatDoesNotExist \
+        test.functional.tests:TestContainer.testContainerFileListWithLimit \
+        test.functional.tests:TestContainer.testTooLongName \
+        test.functional.tests:TestContainer.testContainerExistenceCachingProblem \
+        test.functional.tests:TestContainerPathsEnv \
+        test.functional.tests:TestContainerPaths.testContainerListing \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
