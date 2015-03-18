@@ -159,8 +159,8 @@ public final class ContainerResource extends BlobStoreResource {
                                   @QueryParam("marker") String marker,
                                   @QueryParam("end_marker") String endMarker,
                                   @QueryParam("format") @DefaultValue("plain") String format,
-                                  @QueryParam("prefix") String prefix,
-                                  @QueryParam("delimiter") String delimiter,
+                                  @QueryParam("prefix") String prefixParam,
+                                  @QueryParam("delimiter") String delimiterParam,
                                   @QueryParam("path") String path,
                                   @HeaderParam("X-Newest") @DefaultValue("false") boolean newest,
                                   @HeaderParam("Accept") String accept) {
@@ -168,41 +168,38 @@ public final class ContainerResource extends BlobStoreResource {
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
+
+        String prefix;
+        String delimiter;
+
+        if (path != null) {
+            delimiter = "/";
+            prefix = path + "/";
+        } else {
+            prefix = prefixParam;
+            delimiter = delimiterParam;
+        }
+
         ListContainerOptions options = new ListContainerOptions();
         if (marker != null) {
             options.afterMarker(marker);
         }
 
-        if (path != null) {
-            delimiter = "/";
-            prefix = path.endsWith("/") ? path : path + "/";
+        if (!(delimiter != null && delimiter.equals("/"))) {
+            options = options.recursive();
         }
-        if (prefix != null && ("/".equals(delimiter) || prefix.endsWith("/"))) {
+
+        if (prefix != null) {
             if (!"/".equals(prefix)) {
                 options.inDirectory(prefix);
-                prefix = null;
-            } else {
-                options.inDirectory("");
             }
         }
 
-        if (options.getDir() == null) {
-            options.recursive();
-        }
-/*
-        final String fake_prefix;
-        if (prefix != null) {
-            fake_prefix = prefix;
-        } else {
-            fake_prefix = null;
-        }
-        final String delim_filter = delimiter;
-        logger.info("list: {} marker={} fake_prefix={}", options, options.getMarker(), fake_prefix);
-*/
+        logger.info("list: {} marker={} prefix={}", options, options.getMarker(), prefix);
         List<ObjectEntry> entries = StreamSupport.stream(
                 Utils.crawlBlobStore(store, container, options).spliterator(), false)
                 .filter(meta -> logFilter("meta", meta))
-                //.filter(meta -> (fake_prefix == null || meta.getName().startsWith(fake_prefix)))
+                //.filter(meta -> (prefix == null || meta.getName().startsWith(prefix)))
                 //.filter(meta -> delimFilter(meta.getName(), delim_filter))
                 .filter(meta -> endMarker == null || meta.getName().compareTo(endMarker) < 0)
                 .limit(limit == null ? Integer.MAX_VALUE : limit)

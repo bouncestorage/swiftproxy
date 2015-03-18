@@ -104,6 +104,7 @@ if [ $# == 0 ]; then
         test.functional.tests:TestContainer.testContainerExistenceCachingProblem \
         test.functional.tests:TestContainerPathsEnv \
         test.functional.tests:TestContainerPaths.testContainerListing \
+        test.functional.tests:TestContainerPaths.testTraverseContainer \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
