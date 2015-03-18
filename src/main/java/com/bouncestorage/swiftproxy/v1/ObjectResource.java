@@ -136,7 +136,8 @@ public final class ObjectResource extends BlobStoreResource {
                                @NotNull @Encoded @PathParam("object") String objectName,
                                @NotNull @PathParam("account") String account,
                                @HeaderParam("X-Auth-Token") String authToken,
-                               @NotNull @Encoded @HeaderParam("Destination") String destination,
+                               @NotNull @HeaderParam("Destination") String destination,
+                               @NotNull @HeaderParam("Destination-Account") String destAccount,
                                @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
@@ -149,6 +150,9 @@ public final class ObjectResource extends BlobStoreResource {
 
         String destContainer = dest.getFirst();
         String destObject = dest.getSecond();
+        if (destAccount == null) {
+            destAccount = account;
+        }
 
         logger.info("copy {}/{} to {}/{}", container, objectName, destContainer, destObject);
 
@@ -245,6 +249,7 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                               @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                               @HeaderParam("X-Copy-From") String copyFrom,
+                              @HeaderParam("X-Copy-From-Account") String copyFromAccount,
                               @HeaderParam(HttpHeaders.ETAG) String eTag,
                               @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
                               @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
@@ -255,10 +260,14 @@ public final class ObjectResource extends BlobStoreResource {
         //objectName = normalizePath(objectName);
         logger.info("PUT {}", objectName);
 
+        if (copyFromAccount == null) {
+            copyFromAccount = account;
+        }
+
         if (copyFrom != null) {
             Pair<String, String> copy = validateCopyParam(copyFrom);
-            return copyObject(copy.getFirst(), copy.getSecond(), account, authToken,
-                    container + "/" + objectName, contentType, contentEncoding, contentDisposition,
+            return copyObject(copy.getFirst(), copy.getSecond(), copyFromAccount, authToken,
+                    container + "/" + objectName, account, contentType, contentEncoding, contentDisposition,
                     request);
         }
 
