@@ -117,13 +117,8 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
                                @Context Request request) {
-        BlobStore blobStore = getBlobStore();
-        if (!blobStore.containerExists(container)) {
-            return notFound();
-        }
-        Blob blob = blobStore.getBlob(container, objectName);
-        if (blob == null) {
-            return notFound();
+        if (destination == null) {
+            return Response.status(Response.Status.PRECONDITION_FAILED).build();
         }
 
         String destContainer;
@@ -139,6 +134,15 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         logger.info("copy {}/{} to {}/{}", container, objectName, destContainer, destObject);
+
+        BlobStore blobStore = getBlobStore();
+        if (!blobStore.containerExists(container)) {
+            return notFound();
+        }
+        Blob blob = blobStore.getBlob(container, objectName);
+        if (blob == null) {
+            return notFound();
+        }
 
         blob.getMetadata().setName(destObject);
         copyContentHeaders(blob, contentDisposition, contentEncoding, contentType);

@@ -111,6 +111,9 @@ if [ $# == 0 ]; then
         test.functional.tests:TestContainerPathsEnv \
         test.functional.tests:TestContainerPaths \
         test.functional.tests:TestFile.testCopy \
+        test.functional.tests:TestFile.testCopyAccount \
+        test.functional.tests:TestFile.testCopy404s \
+        test.functional.tests:TestFile.testCopyNoDestinationHeader \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
