@@ -45,6 +45,7 @@ auth_prefix = /auth/
 account = test
 username = tester
 password = testing
+normalized_urls = True
 
 [unit_test]
 fake_syslog = False

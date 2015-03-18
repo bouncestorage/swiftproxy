@@ -8,6 +8,7 @@ package com.bouncestorage.swiftproxy.v1;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Date;
+import java.util.StringTokenizer;
 
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.Consumes;
@@ -24,6 +25,8 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.BlobStoreResource;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Iterators;
 
 import org.glassfish.grizzly.http.server.Request;
 import org.jclouds.blobstore.BlobStore;
@@ -62,6 +65,23 @@ public final class ObjectResource extends BlobStoreResource {
         }
     }
 
+    private static String normalizePath(String pathName) {
+        String objectName = Joiner.on("/").join(Iterators.forEnumeration(new StringTokenizer(pathName, "/")));
+        if (pathName.endsWith("/")) {
+            objectName += "/";
+        }
+        return objectName;
+    }
+
+    private static String contentType(String contentType) {
+        // workaround the stupidity in jclouds where it always strip trailing / from
+        // blob name listings. this allows us to detect that it's happened
+        if ("application/directory".equals(contentType)) {
+            return "application/x-directory";
+        }
+        return contentType;
+    }
+
     // TODO: Handle object metadata
     @PUT
     @Consumes(" ")
@@ -85,11 +105,17 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("X-Delete-After") long deleteAfter,
                               @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch,
                               @Context Request request) {
+        //objectName = normalizePath(objectName);
+        logger.info("PUT {}", objectName);
+
+        if (!getBlobStore().containerExists(container)) {
+            return notFound();
+        }
         try (InputStream is = request.getInputStream()) {
             BlobBuilder.PayloadBlobBuilder builder = getBlobStore().blobBuilder(objectName)
                     .payload(is)
                     .contentLength(contentLength)
-                    .contentType(contentType);
+                    .contentType(contentType(contentType));
             try {
                 String remoteETag = getBlobStore().putBlob(container, builder.build());
                 return Response.status(Response.Status.CREATED).header(HttpHeaders.ETAG, remoteETag)
@@ -125,6 +151,9 @@ public final class ObjectResource extends BlobStoreResource {
                                  @QueryParam("multipart-manifest") String multipartManifest,
                                  @HeaderParam("X-Auth-Token") String authToken) {
         BlobStore store = getBlobStore();
+        if (!store.containerExists(container)) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
         BlobMetadata meta = store.blobMetadata(container, objectName);
         if (meta == null) {
             return Response.status(Response.Status.NOT_FOUND).build();

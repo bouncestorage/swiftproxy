@@ -7,6 +7,7 @@ package com.bouncestorage.swiftproxy.v1;
 
 import static java.util.Objects.requireNonNull;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,6 +41,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.StorageMetadata;
+import org.jclouds.blobstore.domain.StorageType;
 import org.jclouds.blobstore.options.ListContainerOptions;
 
 @Path("/v1/{account}/{container}")
@@ -126,9 +128,30 @@ public final class ContainerResource extends BlobStoreResource {
     }
 
     private String contentType(StorageMetadata meta) {
-        return meta.getName().endsWith("/") ? "application/directory" : MediaType.APPLICATION_OCTET_STREAM;
-
+        return metaGetName(meta).endsWith("/") ? "application/directory" : MediaType.APPLICATION_OCTET_STREAM;
+        //return "application/directory";
     }
+
+    private boolean delimFilter(String key, String delimiter) {
+        if (delimiter == null) {
+            return true;
+        }
+        key = key.substring(delimiter.length());
+        int idx = key.indexOf(delimiter);
+        return idx == -1 || idx == key.length() - delimiter.length();
+    }
+
+    private boolean logFilter(String tag, Object obj) {
+        logger.info("{}: {}", tag, obj);
+        return true;
+    }
+
+    private static String metaGetName(StorageMetadata meta) {
+        return meta.getType() == StorageType.RELATIVE_PATH ?
+                (meta.getName().endsWith("/") ? meta.getName() : meta.getName() + "/") :
+                meta.getName();
+    }
+
     @GET
     public Response listContainer(@NotNull @PathParam("container") String container,
                                   @HeaderParam("X-Auth-Token") String authToken,
@@ -145,21 +168,46 @@ public final class ContainerResource extends BlobStoreResource {
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
-        ListContainerOptions options = new ListContainerOptions().withDetails();
+        ListContainerOptions options = new ListContainerOptions();
         if (marker != null) {
             options.afterMarker(marker);
         }
+
+        if (path != null) {
+            delimiter = "/";
+            prefix = path.endsWith("/") ? path : path + "/";
+        }
         if (prefix != null && ("/".equals(delimiter) || prefix.endsWith("/"))) {
-            options.inDirectory(prefix);
+            if (!"/".equals(prefix)) {
+                options.inDirectory(prefix);
+                prefix = null;
+            } else {
+                options.inDirectory("");
+            }
         }
-        if (path != null && !path.equals("/")) {
-            options.inDirectory(path);
+
+        if (options.getDir() == null) {
+            options.recursive();
         }
+/*
+        final String fake_prefix;
+        if (prefix != null) {
+            fake_prefix = prefix;
+        } else {
+            fake_prefix = null;
+        }
+        final String delim_filter = delimiter;
+        logger.info("list: {} marker={} fake_prefix={}", options, options.getMarker(), fake_prefix);
+*/
         List<ObjectEntry> entries = StreamSupport.stream(
                 Utils.crawlBlobStore(store, container, options).spliterator(), false)
+                .filter(meta -> logFilter("meta", meta))
+                //.filter(meta -> (fake_prefix == null || meta.getName().startsWith(fake_prefix)))
+                //.filter(meta -> delimFilter(meta.getName(), delim_filter))
                 .filter(meta -> endMarker == null || meta.getName().compareTo(endMarker) < 0)
                 .limit(limit == null ? Integer.MAX_VALUE : limit)
-                .map(meta -> new ObjectEntry(meta.getName(), meta.getETag(), meta.getSize(),
+                .map(meta -> new ObjectEntry(metaGetName(meta), meta.getETag(),
+                        meta.getSize() == null ? 0 : meta.getSize(),
                         contentType(meta), meta.getLastModified()))
                 .collect(Collectors.toList());
 
@@ -208,10 +256,10 @@ public final class ContainerResource extends BlobStoreResource {
                            @JsonProperty("content_type") String content_type,
                            @JsonProperty("last_modified") Date last_modified) {
             this.name = requireNonNull(name);
-            this.hash = requireNonNull(hash);
+            this.hash = hash == null ? "" : hash;
             this.bytes = bytes;
             this.content_type = requireNonNull(content_type);
-            this.last_modified = requireNonNull(last_modified);
+            this.last_modified = last_modified == null ? Date.from(Instant.EPOCH) : last_modified;
         }
 
         @Override

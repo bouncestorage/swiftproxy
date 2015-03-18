@@ -28,6 +28,8 @@ import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.domain.StorageType;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class Utils {
     private Utils() {
@@ -89,6 +91,7 @@ public final class Utils {
 
     private static class CrawlBlobStoreIterator
             implements Iterator<StorageMetadata> {
+        private Logger logger = LoggerFactory.getLogger(CrawlBlobStoreIterator.class);
         private final ListContainerOptions options;
         private Iterator<? extends StorageMetadata> iterator;
         private String marker;
@@ -102,7 +105,7 @@ public final class Utils {
 
         CrawlBlobStoreIterator(BlobStore blobStore, String containerName,
                 ListContainerOptions options) {
-            this.options = Preconditions.checkNotNull(options).recursive();
+            this.options = Preconditions.checkNotNull(options);
             nextPage = () -> blobStore.list(containerName, options);
             advance();
         }
@@ -113,6 +116,7 @@ public final class Utils {
             }
             try {
                 PageSet<? extends StorageMetadata> set = nextPage.call();
+                logger.info("LIST opt={} res={}", options, set.size());
                 marker = set.getNextMarker();
                 iterator = set.iterator();
             } catch (Exception e) {
@@ -122,7 +126,13 @@ public final class Utils {
 
         @Override
         public boolean hasNext() {
-            return iterator.hasNext() || marker != null;
+            if (iterator.hasNext()) {
+                return true;
+            }
+            if (marker != null) {
+                advance();
+            }
+            return iterator.hasNext();
         }
 
         @Override

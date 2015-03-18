@@ -34,7 +34,7 @@ public final class SwiftProxy {
         this.endpoint = checkNotNull(endpoint);
 
         rc = new BounceResourceConfig(blobStore);
-        if (false) {
+        if (logger.isDebugEnabled()) {
             rc.register(new LoggingFilter(java.util.logging.Logger.getGlobal(), true));
         }
         server = GrizzlyHttpServerFactory.createHttpServer(endpoint, rc, false);
