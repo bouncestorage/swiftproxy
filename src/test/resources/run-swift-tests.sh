@@ -61,7 +61,7 @@ max_file_size = 5368709122
 max_meta_name_length = 128
 max_meta_value_length = 256
 max_meta_count = 90
-max_meta_overall_size = 4096
+max_meta_overall_size = 2048
 max_header_size = 8192
 max_object_name_length = 1024
 container_listing_limit = 10000
@@ -121,6 +121,7 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFile.testQuestionMarkInName \
         test.functional.tests:TestFile.testDeleteThen404s \
         test.functional.tests:TestFile.testBlankMetadataName \
+        test.functional.tests:TestFile.testMetadataNumberLimit \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
