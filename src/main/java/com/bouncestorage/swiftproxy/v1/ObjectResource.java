@@ -40,6 +40,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Iterators;
 
 import org.glassfish.grizzly.http.server.Request;
+import org.glassfish.grizzly.utils.Pair;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
@@ -106,6 +107,29 @@ public final class ObjectResource extends BlobStoreResource {
                         name -> request.getHeader(name)));
     }
 
+    private static Pair<String, String> validateCopyDestination(String destination) {
+        if (destination == null) {
+            return null;
+        }
+        Pair<String, String> res;
+
+        if (destination.charAt(0) == '/') {
+            String[] tokens = destination.split("/", 3);
+            if (tokens.length != 3) {
+                return null;
+            }
+            res = new Pair<>(tokens[1], tokens[2]);
+        } else {
+            String[] tokens = destination.split("/", 2);
+            if (tokens.length != 2) {
+                return null;
+            }
+            res = new Pair<>(tokens[0], tokens[1]);
+        }
+
+        return res;
+    }
+
     @COPY
     @Consumes(" ")
     public Response copyObject(@NotNull @PathParam("container") String container,
@@ -117,21 +141,14 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
                                @Context Request request) {
-        if (destination == null) {
+
+        Pair<String, String> dest = validateCopyDestination(destination);
+        if (dest == null) {
             return Response.status(Response.Status.PRECONDITION_FAILED).build();
         }
 
-        String destContainer;
-        String destObject;
-        if (destination.charAt(0) == '/') {
-            String[] tokens = destination.split("/", 3);
-            destContainer = tokens[1];
-            destObject = tokens[2];
-        } else {
-            String[] tokens = destination.split("/", 2);
-            destContainer = tokens[0];
-            destObject = tokens[1];
-        }
+        String destContainer = dest.getFirst();
+        String destObject = dest.getSecond();
 
         logger.info("copy {}/{} to {}/{}", container, objectName, destContainer, destObject);
 
