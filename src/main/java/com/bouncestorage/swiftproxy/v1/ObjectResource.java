@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import javax.validation.constraints.NotNull;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.Encoded;
@@ -102,6 +103,12 @@ public final class ObjectResource extends BlobStoreResource {
         return StreamSupport.stream(request.getHeaderNames().spliterator(), false)
                 .filter(name -> logFilter("header", name))
                 .filter(name -> name.toLowerCase().startsWith(META_HEADER_PREFIX))
+                .filter(name -> {
+                    if (name.equals(META_HEADER_PREFIX)) {
+                        throw new BadRequestException();
+                    }
+                    return true;
+                })
                 .filter(name -> logFilter("usermetadata", name))
                 .collect(Collectors.toMap(
                         name -> name.substring(META_HEADER_PREFIX.length()),
@@ -163,6 +170,8 @@ public final class ObjectResource extends BlobStoreResource {
 
         logger.info("copy {}/{} to {}/{}", container, objectName, destContainer, destObject);
 
+        Map<String, String> additionalUserMeta = getUserMetadata(request);
+
         BlobStore blobStore = getBlobStore();
         if (!blobStore.containerExists(container) || !blobStore.containerExists(destContainer)) {
             return notFound();
@@ -176,7 +185,7 @@ public final class ObjectResource extends BlobStoreResource {
         copyContentHeaders(blob, contentDisposition, contentEncoding, contentType);
         Map<String, String> allUserMeta = new HashMap<>();
         allUserMeta.putAll(blob.getMetadata().getUserMetadata());
-        allUserMeta.putAll(getUserMetadata(request));
+        allUserMeta.putAll(additionalUserMeta);
 
         String remoteETag = blobStore.putBlob(destContainer, blob);
         String copiedFrom;
