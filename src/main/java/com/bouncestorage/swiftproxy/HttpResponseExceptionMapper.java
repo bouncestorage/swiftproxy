@@ -6,16 +6,21 @@
 package com.bouncestorage.swiftproxy;
 
 import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 
+import org.glassfish.jersey.spi.ExtendedExceptionMapper;
 import org.jclouds.http.HttpResponseException;
 
 @Provider
-public final class HttpResponseExceptionMapper implements ExceptionMapper<HttpResponseException> {
+public final class HttpResponseExceptionMapper implements ExtendedExceptionMapper<HttpResponseException> {
     @Override
     public Response toResponse(HttpResponseException exception) {
         return Response.status(exception.getResponse().getStatusCode())
                 .build();
+    }
+
+    @Override
+    public boolean isMappable(HttpResponseException exception) {
+        return exception.getResponse() != null;
     }
 }
