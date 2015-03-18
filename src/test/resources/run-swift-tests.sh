@@ -115,6 +115,7 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFile.testCopy404s \
         test.functional.tests:TestFile.testCopyNoDestinationHeader \
         test.functional.tests:TestFile.testCopyDestinationSlashProblems \
+        test.functional.tests:TestFile.testCopyFromHeader \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@

@@ -107,7 +107,7 @@ public final class ObjectResource extends BlobStoreResource {
                         name -> request.getHeader(name)));
     }
 
-    private static Pair<String, String> validateCopyDestination(String destination) {
+    private static Pair<String, String> validateCopyParam(String destination) {
         if (destination == null) {
             return null;
         }
@@ -142,7 +142,7 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
                                @Context Request request) {
 
-        Pair<String, String> dest = validateCopyDestination(destination);
+        Pair<String, String> dest = validateCopyParam(destination);
         if (dest == null) {
             return Response.status(Response.Status.PRECONDITION_FAILED).build();
         }
@@ -254,6 +254,13 @@ public final class ObjectResource extends BlobStoreResource {
                               @Context Request request) {
         //objectName = normalizePath(objectName);
         logger.info("PUT {}", objectName);
+
+        if (copyFrom != null) {
+            Pair<String, String> copy = validateCopyParam(copyFrom);
+            return copyObject(copy.getFirst(), copy.getSecond(), account, authToken,
+                    container + "/" + objectName, contentType, contentEncoding, contentDisposition,
+                    request);
+        }
 
         if (!getBlobStore().containerExists(container)) {
             return notFound();
