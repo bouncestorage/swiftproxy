@@ -40,6 +40,11 @@ public abstract class BlobStoreResource {
                 .build();
     }
 
+    protected final boolean logFilter(String tag, Object obj) {
+        logger.info("{}: {}", tag, obj);
+        return true;
+    }
+
     private void debugWrite(Object root, MediaType format) {
 
         MessageBodyWriter messageBodyWriter =

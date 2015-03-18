@@ -42,10 +42,16 @@ auth_host = 127.0.0.1
 auth_port = 8080
 auth_ssl = no
 auth_prefix = /auth/
+normalized_urls = True
+
 account = test
 username = tester
 password = testing
-normalized_urls = True
+
+account2 = test2
+username2 = tester2
+password2 = testing2
+
 
 [unit_test]
 fake_syslog = False
@@ -104,6 +110,7 @@ if [ $# == 0 ]; then
         test.functional.tests:TestContainer.testContainerExistenceCachingProblem \
         test.functional.tests:TestContainerPathsEnv \
         test.functional.tests:TestContainerPaths \
+        test.functional.tests:TestFile.testCopy \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@

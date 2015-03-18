@@ -141,11 +141,6 @@ public final class ContainerResource extends BlobStoreResource {
         return idx == -1 || idx == key.length() - delimiter.length();
     }
 
-    private boolean logFilter(String tag, Object obj) {
-        logger.info("{}: {}", tag, obj);
-        return true;
-    }
-
     private static String metaGetName(StorageMetadata meta) {
         return meta.getType() == StorageType.RELATIVE_PATH ?
                 (meta.getName().endsWith("/") ? meta.getName() : meta.getName() + "/") :
