@@ -40,6 +40,10 @@ public abstract class BlobStoreResource {
                 .build();
     }
 
+    protected static Response badRequest() {
+        return Response.status(Response.Status.BAD_REQUEST).build();
+    }
+
     protected final boolean logFilter(String tag, Object obj) {
         logger.info("{}: {}", tag, obj);
         return true;

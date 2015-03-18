@@ -51,6 +51,7 @@ import org.jclouds.io.MutableContentMetadata;
 @Path("/v1/{account}/{container}/{object:.*}")
 public final class ObjectResource extends BlobStoreResource {
     private static final String META_HEADER_PREFIX = "x-object-meta-";
+    private static final int MAX_OBJECT_NAME_LENGTH = 1024;
 
     @GET
     public Response getObject(@NotNull @PathParam("container") String container,
@@ -142,6 +143,9 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
                                @Context Request request) {
+        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+            return badRequest();
+        }
 
         Pair<String, String> dest = validateCopyParam(destination);
         if (dest == null) {
@@ -153,11 +157,14 @@ public final class ObjectResource extends BlobStoreResource {
         if (destAccount == null) {
             destAccount = account;
         }
+        if (destObject.length() > MAX_OBJECT_NAME_LENGTH) {
+            return badRequest();
+        }
 
         logger.info("copy {}/{} to {}/{}", container, objectName, destContainer, destObject);
 
         BlobStore blobStore = getBlobStore();
-        if (!blobStore.containerExists(container)) {
+        if (!blobStore.containerExists(container) || !blobStore.containerExists(destContainer)) {
             return notFound();
         }
         Blob blob = blobStore.getBlob(container, objectName);
@@ -202,6 +209,10 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                                @Context Request request) {
+        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+            return badRequest();
+        }
+
         if (!getBlobStore().containerExists(container)) {
             return notFound();
         }
@@ -258,6 +269,10 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch,
                               @Context Request request) {
         //objectName = normalizePath(objectName);
+        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+            return badRequest();
+        }
+
         logger.info("PUT {}", objectName);
 
         if (copyFromAccount == null) {
@@ -299,6 +314,10 @@ public final class ObjectResource extends BlobStoreResource {
                                @NotNull @Encoded @PathParam("object") String objectName,
                                @NotNull @PathParam("account") String account,
                                @HeaderParam("X-Auth-Token") String authToken) {
+        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+            return badRequest();
+        }
+
         BlobMetadata meta = getBlobStore().blobMetadata(container, objectName);
         if (meta == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -314,6 +333,10 @@ public final class ObjectResource extends BlobStoreResource {
                                  @NotNull @Encoded @PathParam("object") String objectName,
                                  @QueryParam("multipart-manifest") String multipartManifest,
                                  @HeaderParam("X-Auth-Token") String authToken) {
+        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+            return badRequest();
+        }
+
         BlobStore store = getBlobStore();
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
