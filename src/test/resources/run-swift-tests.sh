@@ -127,6 +127,18 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFile.testDelete \
         test.functional.tests:TestFile.testMetadataLengthLimits \
         test.functional.tests:TestFile.testEtagWayoff \
+        test.functional.tests:TestFile.testFileCreate \
+        test.functional.tests:TestFile.testDeleteOfFileThatDoesNotExist \
+        test.functional.tests:TestFile.testHeadOnFileThatDoesNotExist \
+        test.functional.tests:TestFile.testMetadataOnPost \
+        test.functional.tests:TestFile.testGetOnFileThatDoesNotExist \
+        test.functional.tests:TestFile.testPostOnFileThatDoesNotExist \
+        test.functional.tests:TestFile.testMetadataOnPut \
+        test.functional.tests:TestFile.testStackedOverwrite \
+        test.functional.tests:TestFile.testTooLongName \
+        test.functional.tests:TestFile.testZeroByteFile \
+        test.functional.tests:TestFile.testEtagResponse \
+
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@

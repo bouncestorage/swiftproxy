@@ -362,8 +362,10 @@ public final class ObjectResource extends BlobStoreResource {
             BlobBuilder.PayloadBlobBuilder builder = getBlobStore().blobBuilder(objectName)
                     .userMetadata(getUserMetadata(request))
                     .payload(is)
-                    .contentLength(contentLength)
                     .contentType(contentType(contentType));
+            if (!"chunked".equals(transferEncoding)) {
+                builder.contentLength(contentLength);
+            }
             if (contentMD5 != null) {
                 builder.contentMD5(contentMD5);
             }
