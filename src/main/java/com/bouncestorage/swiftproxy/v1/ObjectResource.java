@@ -43,6 +43,9 @@ import com.bouncestorage.swiftproxy.BlobStoreResource;
 import com.bouncestorage.swiftproxy.COPY;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterators;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
+import com.google.common.io.BaseEncoding;
 
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.utils.Pair;
@@ -299,7 +302,6 @@ public final class ObjectResource extends BlobStoreResource {
 
     // TODO: Handle object metadata
     @PUT
-    @Consumes(" ")
     public Response putObject(@NotNull @PathParam("container") String container,
                               @NotNull @Encoded @PathParam("object") String objectName,
                               @NotNull @PathParam("account") String account,
@@ -342,12 +344,29 @@ public final class ObjectResource extends BlobStoreResource {
         if (!getBlobStore().containerExists(container)) {
             return notFound();
         }
+
+        HashCode contentMD5 = null;
+        if (eTag != null) {
+            try {
+                contentMD5 = HashCode.fromBytes(
+                        BaseEncoding.base64().decode(eTag));
+            } catch (IllegalArgumentException iae) {
+                throw new ClientErrorException(422); // Unprocessable Entity
+            }
+            if (contentMD5.bits() != Hashing.md5().bits()) {
+                throw new ClientErrorException(422); // Unprocessable Entity
+            }
+        }
+
         try (InputStream is = request.getInputStream()) {
             BlobBuilder.PayloadBlobBuilder builder = getBlobStore().blobBuilder(objectName)
                     .userMetadata(getUserMetadata(request))
                     .payload(is)
                     .contentLength(contentLength)
                     .contentType(contentType(contentType));
+            if (contentMD5 != null) {
+                builder.contentMD5(contentMD5);
+            }
             try {
                 String remoteETag = getBlobStore().putBlob(container, builder.build());
                 return Response.status(Response.Status.CREATED).header(HttpHeaders.ETAG, remoteETag)
