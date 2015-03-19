@@ -124,7 +124,9 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFile.testMetadataNumberLimit \
         test.functional.tests:TestFile.testRangedGets \
         test.functional.tests:TestFile.testRangedGetsWithLWSinHeader \
+        test.functional.tests:TestFile.testNoContentLengthForPut \
         test.functional.tests:TestFile.testDelete \
+        test.functional.tests:TestFile.testBadHeaders \
         test.functional.tests:TestFile.testMetadataLengthLimits \
         test.functional.tests:TestFile.testEtagWayoff \
         test.functional.tests:TestFile.testFileCreate \

@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,7 +46,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Iterators;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import com.google.common.io.BaseEncoding;
 
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.utils.Pair;
@@ -310,7 +310,7 @@ public final class ObjectResource extends BlobStoreResource {
                               @QueryParam("expires") String expires,
                               @HeaderParam("X-Object-Manifest") String objectManifest,
                               @HeaderParam("X-Auth-Token") String authToken,
-                              @HeaderParam(HttpHeaders.CONTENT_LENGTH) int contentLength,
+                              @HeaderParam(HttpHeaders.CONTENT_LENGTH) String contentLengthParam,
                               @HeaderParam("Transfer-Encoding") String transferEncoding,
                               @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                               @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
@@ -327,6 +327,14 @@ public final class ObjectResource extends BlobStoreResource {
         if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
             return badRequest();
         }
+        if (transferEncoding != null && !"chunked".equals(transferEncoding)) {
+            return Response.status(Response.Status.NOT_IMPLEMENTED).build();
+        }
+
+        if (contentLengthParam == null && !"chunked".equals(transferEncoding)) {
+            return Response.status(Response.Status.LENGTH_REQUIRED).build();
+        }
+        long contentLength = contentLengthParam == null ? 0 : Long.valueOf(contentLengthParam);
 
         logger.info("PUT {}", objectName);
 
@@ -348,8 +356,7 @@ public final class ObjectResource extends BlobStoreResource {
         HashCode contentMD5 = null;
         if (eTag != null) {
             try {
-                contentMD5 = HashCode.fromBytes(
-                        BaseEncoding.base64().decode(eTag));
+                contentMD5 = HashCode.fromBytes(Base64.getDecoder().decode(eTag));
             } catch (IllegalArgumentException iae) {
                 throw new ClientErrorException(422); // Unprocessable Entity
             }
@@ -363,7 +370,7 @@ public final class ObjectResource extends BlobStoreResource {
                     .userMetadata(getUserMetadata(request))
                     .payload(is)
                     .contentType(contentType(contentType));
-            if (!"chunked".equals(transferEncoding)) {
+            if (contentLengthParam != null) {
                 builder.contentLength(contentLength);
             }
             if (contentMD5 != null) {
