@@ -148,7 +148,7 @@ public final class ObjectResource extends BlobStoreResource {
 
     private Map<String, String> getUserMetadata(Request request) {
         return StreamSupport.stream(request.getHeaderNames().spliterator(), false)
-                .filter(name -> logFilter("header", name))
+                .peek(name -> logger.info("header: {}", name))
                 .filter(name -> name.toLowerCase().startsWith(META_HEADER_PREFIX))
                 .filter(name -> {
                     if (name.equals(META_HEADER_PREFIX)) {
@@ -156,7 +156,7 @@ public final class ObjectResource extends BlobStoreResource {
                     }
                     return true;
                 })
-                .filter(name -> logFilter("usermetadata", name))
+                .peek(name -> logger.info("usermetadata: {}", name))
                 .collect(Collectors.toMap(
                         name -> name.substring(META_HEADER_PREFIX.length()),
                         name -> request.getHeader(name)));
