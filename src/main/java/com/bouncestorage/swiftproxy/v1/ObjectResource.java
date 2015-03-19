@@ -13,13 +13,17 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.StringTokenizer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.BadRequestException;
+import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.Encoded;
@@ -47,12 +51,51 @@ import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.BlobMetadata;
+import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.io.MutableContentMetadata;
 
 @Path("/v1/{account}/{container}/{object:.*}")
 public final class ObjectResource extends BlobStoreResource {
     private static final String META_HEADER_PREFIX = "x-object-meta-";
     private static final int MAX_OBJECT_NAME_LENGTH = 1024;
+
+    private static GetOptions parseRange(GetOptions options, String range) {
+        if (range != null) {
+            range = range.replaceAll(" ", "").toLowerCase();
+            String bytesUnit = "bytes=";
+            int idx = range.indexOf(bytesUnit);
+            if (idx == 0) {
+                String byteRangeSet = range.substring(bytesUnit.length());
+                Iterator<Object> iter = Iterators.forEnumeration(new StringTokenizer(byteRangeSet, ","));
+                StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, Spliterator.ORDERED), false)
+                        .map(rangeSpec -> (String) rangeSpec)
+                        .map(rangeSpec -> {
+                            int dash = rangeSpec.indexOf("-");
+                            if (dash == -1) {
+                                throw new BadRequestException("Range");
+                            }
+                            String firstBytePos = rangeSpec.substring(0, dash);
+                            String lastBytePos = rangeSpec.substring(dash + 1);
+                            Long firstByte = firstBytePos.isEmpty() ? null : Long.valueOf(firstBytePos);
+                            Long lastByte = lastBytePos.isEmpty() ? null : Long.valueOf(lastBytePos);
+                            return new Pair<>(firstByte, lastByte);
+                        })
+                        .forEach(rangeSpec -> {
+                            if (rangeSpec.getFirst() == null) {
+                                if (rangeSpec.getSecond() == 0) {
+                                    throw new ClientErrorException(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE);
+                                }
+                                options.tail(rangeSpec.getSecond());
+                            } else if (rangeSpec.getSecond() == null) {
+                                options.startAt(rangeSpec.getFirst());
+                            } else {
+                                options.range(rangeSpec.getFirst(), rangeSpec.getSecond());
+                            }
+                        });
+            }
+        }
+        return options;
+    }
 
     @GET
     public Response getObject(@NotNull @PathParam("container") String container,
@@ -68,8 +111,9 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("If-None-Match") String ifNoneMatch,
                               @HeaderParam("If-Modified-Since") String ifModifiedSince,
                               @HeaderParam("If-Unmodified-Since") String ifUnmodifiedSince) {
+        GetOptions options = parseRange(new GetOptions(), range);
 
-        Blob blob = getBlobStore().getBlob(container, object);
+        Blob blob = getBlobStore().getBlob(container, object, options);
         if (blob == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

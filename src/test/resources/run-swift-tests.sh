@@ -122,6 +122,8 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFile.testDeleteThen404s \
         test.functional.tests:TestFile.testBlankMetadataName \
         test.functional.tests:TestFile.testMetadataNumberLimit \
+        test.functional.tests:TestFile.testRangedGets \
+        test.functional.tests:TestFile.testRangedGetsWithLWSinHeader \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
