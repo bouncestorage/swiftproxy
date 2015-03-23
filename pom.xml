@@ -205,6 +205,22 @@
               </configuration>
             </plugin>
             <plugin>
+              <groupId>org.skife.maven</groupId>
+              <artifactId>really-executable-jar-maven-plugin</artifactId>
+              <version>1.4.0</version>
+              <configuration>
+                <programFile>swiftproxy</programFile>
+              </configuration>
+              <executions>
+                <execution>
+                  <phase>package</phase>
+                  <goals>
+                    <goal>really-executable-jar</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+            <plugin>
               <groupId>org.sonatype.plugins</groupId>
               <artifactId>nexus-staging-maven-plugin</artifactId>
               <version>1.6.5</version>
