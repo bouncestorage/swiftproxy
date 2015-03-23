@@ -44,11 +44,6 @@ public abstract class BlobStoreResource {
         return Response.status(Response.Status.BAD_REQUEST).build();
     }
 
-    protected final boolean logFilter(String tag, Object obj) {
-        logger.info("{}: {}", tag, obj);
-        return true;
-    }
-
     private void debugWrite(Object root, MediaType format) {
 
         MessageBodyWriter messageBodyWriter =
