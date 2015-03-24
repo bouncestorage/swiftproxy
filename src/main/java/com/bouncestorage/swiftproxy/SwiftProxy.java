@@ -25,12 +25,10 @@ public final class SwiftProxy {
     public static final String PROPERTY_ENDPOINT = "swiftproxy.endpoint";
     private Logger logger = LoggerFactory.getLogger(getClass());
     private HttpServer server;
-    private BlobStore blobStore;
     private URI endpoint;
     private final BounceResourceConfig rc;
 
     public SwiftProxy(BlobStore blobStore, URI endpoint) {
-        this.blobStore = checkNotNull(blobStore);
         this.endpoint = checkNotNull(endpoint);
 
         rc = new BounceResourceConfig(blobStore);

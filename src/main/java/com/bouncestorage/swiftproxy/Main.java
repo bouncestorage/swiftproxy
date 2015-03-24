@@ -54,11 +54,11 @@ public final class Main {
         String endpoint = properties.getProperty(Constants.PROPERTY_ENDPOINT);
         String proxyEndpoint = properties.getProperty(SwiftProxy.PROPERTY_ENDPOINT);
         if (provider == null || identity == null || credential == null || proxyEndpoint == null) {
-            System.err.println("Properties file must contain:\n" +
-                    Constants.PROPERTY_PROVIDER + "\n" +
-                    Constants.PROPERTY_IDENTITY + "\n" +
-                    Constants.PROPERTY_CREDENTIAL + "\n" +
-                    SwiftProxy.PROPERTY_ENDPOINT + "\n");
+            System.err.println("Properties file must contain:%n" +
+                    Constants.PROPERTY_PROVIDER + "%n" +
+                    Constants.PROPERTY_IDENTITY + "%n" +
+                    Constants.PROPERTY_CREDENTIAL + "%n" +
+                    SwiftProxy.PROPERTY_ENDPOINT + "%n");
             System.exit(1);
         }
 
@@ -77,7 +77,7 @@ public final class Main {
                 .endpoint(new URI(proxyEndpoint))
                 .build();
         proxy.start();
-        System.out.format("Swift proxy listening on port %d\n", proxy.getPort());
+        System.out.format("Swift proxy listening on port %d%n", proxy.getPort());
         Thread.currentThread().join();
     }
 }

@@ -61,7 +61,7 @@ public abstract class BlobStoreResource {
             throw propagate(e);
         }
 
-        logger.info("{}", baos.toString());
+        logger.info("{}", baos);
     }
 
     protected final Response.ResponseBuilder output(Object root, Object value, MediaType

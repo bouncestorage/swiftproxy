@@ -79,8 +79,8 @@ public final class ObjectResource extends BlobStoreResource {
                             }
                             String firstBytePos = rangeSpec.substring(0, dash);
                             String lastBytePos = rangeSpec.substring(dash + 1);
-                            Long firstByte = firstBytePos.isEmpty() ? null : Long.valueOf(firstBytePos);
-                            Long lastByte = lastBytePos.isEmpty() ? null : Long.valueOf(lastBytePos);
+                            Long firstByte = firstBytePos.isEmpty() ? null : Long.parseLong(firstBytePos);
+                            Long lastByte = lastBytePos.isEmpty() ? null : Long.parseLong(lastBytePos);
                             return new Pair<>(firstByte, lastByte);
                         })
                         .forEach(rangeSpec -> {
@@ -208,6 +208,7 @@ public final class ObjectResource extends BlobStoreResource {
 
         String destContainer = dest.getFirst();
         String destObject = dest.getSecond();
+        // TODO: unused
         if (destAccount == null) {
             destAccount = account;
         }
@@ -334,7 +335,7 @@ public final class ObjectResource extends BlobStoreResource {
         if (contentLengthParam == null && !"chunked".equals(transferEncoding)) {
             return Response.status(Response.Status.LENGTH_REQUIRED).build();
         }
-        long contentLength = contentLengthParam == null ? 0 : Long.valueOf(contentLengthParam);
+        long contentLength = contentLengthParam == null ? 0 : Long.parseLong(contentLengthParam);
 
         logger.info("PUT {}", objectName);
 

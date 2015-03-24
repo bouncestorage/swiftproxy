@@ -8,6 +8,7 @@ package com.bouncestorage.swiftproxy.v1;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -110,6 +111,11 @@ public final class AccountResource extends BlobStoreResource {
         public boolean equals(Object other) {
             return other instanceof ContainerEntry &&
                     name.equals(((ContainerEntry) other).name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, count, bytes);
         }
 
         public String getName() {
