@@ -13,7 +13,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Base64;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Spliterator;
@@ -54,8 +53,11 @@ import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.BlobMetadata;
+import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.GetOptions;
+import org.jclouds.http.HttpResponseException;
 import org.jclouds.io.MutableContentMetadata;
+import org.jclouds.openstack.swift.v1.CopyObjectException;
 
 @Path("/v1/{account}/{container}/{object:.*}")
 public final class ObjectResource extends BlobStoreResource {
@@ -224,32 +226,41 @@ public final class ObjectResource extends BlobStoreResource {
         if (!blobStore.containerExists(container) || !blobStore.containerExists(destContainer)) {
             return notFound();
         }
-        Blob blob = blobStore.getBlob(container, objectName);
-        if (blob == null) {
-            return notFound();
-        }
-
-        blob.getMetadata().setName(destObject);
-        copyContentHeaders(blob, contentDisposition, contentEncoding, contentType);
-        Map<String, String> allUserMeta = new HashMap<>();
-        allUserMeta.putAll(blob.getMetadata().getUserMetadata());
-        allUserMeta.putAll(additionalUserMeta);
-
-        String remoteETag = blobStore.putBlob(destContainer, blob);
         String copiedFrom;
         try {
             copiedFrom = container + "/" + URLDecoder.decode(objectName, "UTF-8");
         } catch (UnsupportedEncodingException e) {
             throw propagate(e);
         }
-        return Response.status(Response.Status.CREATED)
-                .header(HttpHeaders.ETAG, remoteETag)
-                .header(HttpHeaders.CONTENT_LENGTH, 0)
-                .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.DATE, new Date())
-                .header("X-Copied-From-Last-Modified", blob.getMetadata().getLastModified())
-                .header("X-Copied-From", copiedFrom)
-                .build();
+
+        CopyOptions options;
+        if (additionalUserMeta.isEmpty()) {
+            options = CopyOptions.NONE;
+        } else {
+            BlobMetadata meta = blobStore.blobMetadata(container, objectName);
+            if (meta == null) {
+                return notFound();
+            }
+            options = CopyOptions.builder()
+                    .userMetadata(meta.getUserMetadata())
+                    .userMetadata(additionalUserMeta).build();
+        }
+        try {
+            String etag = blobStore.copyBlob(container, objectName, destContainer, destObject, options);
+            return Response.status(Response.Status.CREATED)
+                    .header(HttpHeaders.ETAG, etag)
+                    .header(HttpHeaders.CONTENT_LENGTH, 0)
+                    .header(HttpHeaders.CONTENT_TYPE, contentType)
+                    .header(HttpHeaders.DATE, new Date())
+                    .header("X-Copied-From", copiedFrom)
+                    .build();
+        } catch (CopyObjectException e) {
+            if (e.getCause() instanceof HttpResponseException) {
+                throw (HttpResponseException) e.getCause();
+            } else {
+                throw e;
+            }
+        }
     }
 
     // TODO: actually handle this, jclouds doesn't support metadata update yet
