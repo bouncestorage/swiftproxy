@@ -292,6 +292,7 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam("X-Auth-Token") String authToken,
                                @NotNull @HeaderParam("Destination") String destination,
                                @NotNull @HeaderParam("Destination-Account") String destAccount,
+                               @QueryParam("multipart-manifest") String multiPartManifest,
                                @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
@@ -350,7 +351,7 @@ public final class ObjectResource extends BlobStoreResource {
 
         Map<String, String> userMetadata = meta.getUserMetadata();
         String etag;
-        if (userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+        if (!"get".equals(multiPartManifest) && userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
             // copy is supposed to flatten the large object, which we have to emulate
             etag = emulatedCopyBlob(meta, destContainer, destObject, options);
         } else {
@@ -463,7 +464,7 @@ public final class ObjectResource extends BlobStoreResource {
         if (copyFrom != null) {
             Pair<String, String> copy = validateCopyParam(copyFrom);
             return copyObject(copy.getFirst(), copy.getSecond(), copyFromAccount, authToken,
-                    container + "/" + objectName, account, contentType, contentEncoding, contentDisposition,
+                    container + "/" + objectName, account, null, contentType, contentEncoding, contentDisposition,
                     request);
         }
 

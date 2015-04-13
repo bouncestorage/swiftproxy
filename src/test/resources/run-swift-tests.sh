@@ -144,6 +144,7 @@ if [ $# == 0 ]; then
         test.functional.tests:TestDlo.test_get_manifest_document_itself \
         test.functional.tests:TestDlo.test_copy \
         test.functional.tests:TestDlo.test_copy_account \
+        test.functional.tests:TestDlo.test_copy_manifest \
 
 
 else
