@@ -6,7 +6,7 @@ set -o nounset
 
 PROXY_BIN="java -cp target/classes/:./target/swift-proxy-1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
 PROXY_PORT="8080"
-TEST_CONF="${PWD}/src/main/resources/swiftproxy.conf"
+TEST_CONF="${PWD}/src/main/resources/swiftproxy-saio.conf"
 
 stdbuf -oL -eL $PROXY_BIN --properties $TEST_CONF &
 PROXY_PID=$!
@@ -140,6 +140,8 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFile.testTooLongName \
         test.functional.tests:TestFile.testZeroByteFile \
         test.functional.tests:TestFile.testEtagResponse \
+        test.functional.tests:TestDlo.test_get_manifest \
+        test.functional.tests:TestDlo.test_get_manifest_document_itself \
 
 
 else
