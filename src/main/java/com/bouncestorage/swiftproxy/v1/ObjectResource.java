@@ -9,12 +9,18 @@ import static com.google.common.base.Throwables.propagate;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.StringTokenizer;
@@ -41,9 +47,12 @@ import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.BlobStoreResource;
 import com.bouncestorage.swiftproxy.COPY;
+import com.bouncestorage.swiftproxy.Utils;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 
 import org.glassfish.grizzly.http.server.Request;
@@ -53,8 +62,10 @@ import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.BlobMetadata;
+import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.GetOptions;
+import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.http.HttpResponseException;
 import org.jclouds.io.MutableContentMetadata;
 import org.jclouds.openstack.swift.v1.CopyObjectException;
@@ -63,6 +74,10 @@ import org.jclouds.openstack.swift.v1.CopyObjectException;
 public final class ObjectResource extends BlobStoreResource {
     private static final String META_HEADER_PREFIX = "x-object-meta-";
     private static final int MAX_OBJECT_NAME_LENGTH = 1024;
+    private static final String DYNAMIC_OBJECT_MANIFEST = "x-object-manifest";
+    private static final Set<String> RESERVED_METADATA = ImmutableSet.of(
+            DYNAMIC_OBJECT_MANIFEST
+    );
 
     private static GetOptions parseRange(GetOptions options, String range) {
         if (range != null) {
@@ -117,17 +132,54 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("If-Modified-Since") String ifModifiedSince,
                               @HeaderParam("If-Unmodified-Since") String ifUnmodifiedSince) {
         GetOptions options = parseRange(new GetOptions(), range);
+        BlobStore blobStore = getBlobStore();
 
-        Blob blob = getBlobStore().getBlob(container, object, options);
+        Blob blob = blobStore.getBlob(container, object, options);
         if (blob == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
         BlobMetadata meta = blob.getMetadata();
-        try (InputStream is = blob.getPayload().openStream()) {
-            return addObjectHeaders(meta, Response.ok(is)).build();
-        } catch (IOException e) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        Hasher hash = Hashing.md5().newHasher();
+        if (multiPartManifest == null && meta.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+            String manifest = meta.getUserMetadata().get(DYNAMIC_OBJECT_MANIFEST);
+            Pair<String, String> param = validateCopyParam(manifest);
+            String dloContainer = param.getFirst();
+            String objectsPrefix = param.getSecond();
+            ListContainerOptions listOptions = new ListContainerOptions()
+                    .recursive()
+                    .afterMarker(objectsPrefix)
+                    .withDetails();
+            Iterable<StorageMetadata> res = Utils.crawlBlobStore(blobStore, dloContainer, listOptions);
+            List<InputStream> segmentStreams = new ArrayList<>();
+            long segmentsTotalLength = 0;
+            for (StorageMetadata sm : res) {
+                if (sm.getName().startsWith(objectsPrefix)) {
+                    Blob segment = blobStore.getBlob(dloContainer, sm.getName());
+                    if (segment != null) {
+                        try {
+                            segmentStreams.add(segment.getPayload().openStream());
+                            segmentsTotalLength += segment.getMetadata().getSize();
+                            hash.putString(segment.getMetadata().getETag(), StandardCharsets.UTF_8);
+                        } catch (IOException e) {
+                            throw propagate(e);
+                        }
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            SequenceInputStream combined =
+                    new SequenceInputStream(Iterators.asEnumeration(segmentStreams.iterator()));
+            return addObjectHeaders(meta, segmentsTotalLength,
+                    '"' + hash.hash().toString() + '"', Response.ok(combined)).build();
+        } else {
+            try (InputStream is = blob.getPayload().openStream()) {
+                return addObjectHeaders(meta, Response.ok(is)).build();
+            } catch (IOException e) {
+                return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+            }
         }
     }
 
@@ -153,12 +205,11 @@ public final class ObjectResource extends BlobStoreResource {
                 .peek(name -> logger.info("header: {}", name))
                 .filter(name -> name.toLowerCase().startsWith(META_HEADER_PREFIX))
                 .filter(name -> {
-                    if (name.equals(META_HEADER_PREFIX)) {
+                    if (name.equals(META_HEADER_PREFIX) || RESERVED_METADATA.contains(name)) {
                         throw new BadRequestException();
                     }
                     return true;
                 })
-                .peek(name -> logger.info("usermetadata: {}", name))
                 .collect(Collectors.toMap(
                         name -> name.substring(META_HEADER_PREFIX.length()),
                         name -> request.getHeader(name)));
@@ -241,9 +292,13 @@ public final class ObjectResource extends BlobStoreResource {
             if (meta == null) {
                 return notFound();
             }
+            Map newMetadata = new HashMap<>();
+            newMetadata.putAll(meta.getUserMetadata());
+            newMetadata.putAll(additionalUserMeta);
+
             options = CopyOptions.builder()
-                    .userMetadata(meta.getUserMetadata())
-                    .userMetadata(additionalUserMeta).build();
+                    .userMetadata(newMetadata)
+                    .build();
         }
         try {
             String etag = blobStore.copyBlob(container, objectName, destContainer, destObject, options);
@@ -288,7 +343,12 @@ public final class ObjectResource extends BlobStoreResource {
         if (blob == null) {
             return notFound();
         }
-        blob.getMetadata().setUserMetadata(getUserMetadata(request));
+        Map<String, String> newMetadata = getUserMetadata(request);
+        Map<String, String> originalMetadata = blob.getMetadata().getUserMetadata();
+        RESERVED_METADATA.stream()
+                .filter(k -> originalMetadata.containsKey(k))
+                .forEach(k -> newMetadata.put(k, originalMetadata.get(k)));
+        blob.getMetadata().setUserMetadata(newMetadata);
         copyContentHeaders(blob, contentDisposition, contentEncoding, contentType);
 
         getBlobStore().putBlob(container, blob);
@@ -312,7 +372,6 @@ public final class ObjectResource extends BlobStoreResource {
         }
     }
 
-    // TODO: Handle object metadata
     @PUT
     public Response putObject(@NotNull @PathParam("container") String container,
                               @NotNull @Encoded @PathParam("object") String objectName,
@@ -320,7 +379,7 @@ public final class ObjectResource extends BlobStoreResource {
                               @QueryParam("multipart-manifest") boolean multiPartManifest,
                               @QueryParam("signature") String signature,
                               @QueryParam("expires") String expires,
-                              @HeaderParam("X-Object-Manifest") String objectManifest,
+                              @HeaderParam(DYNAMIC_OBJECT_MANIFEST) String objectManifest,
                               @HeaderParam("X-Auth-Token") String authToken,
                               @HeaderParam(HttpHeaders.CONTENT_LENGTH) String contentLengthParam,
                               @HeaderParam("Transfer-Encoding") String transferEncoding,
@@ -361,6 +420,11 @@ public final class ObjectResource extends BlobStoreResource {
                     request);
         }
 
+        Map<String, String> metadata = getUserMetadata(request);
+        if (objectManifest != null) {
+            metadata.put(DYNAMIC_OBJECT_MANIFEST, objectManifest);
+        }
+
         if (!getBlobStore().containerExists(container)) {
             return notFound();
         }
@@ -379,7 +443,7 @@ public final class ObjectResource extends BlobStoreResource {
 
         try (InputStream is = request.getInputStream()) {
             BlobBuilder.PayloadBlobBuilder builder = getBlobStore().blobBuilder(objectName)
-                    .userMetadata(getUserMetadata(request))
+                    .userMetadata(metadata)
                     .payload(is)
                     .contentType(contentType(contentType));
             if (contentLengthParam != null) {
@@ -446,14 +510,23 @@ public final class ObjectResource extends BlobStoreResource {
                 .build();
     }
 
-    private Response.ResponseBuilder addObjectHeaders(BlobMetadata metaData, Response.ResponseBuilder responseBuilder) {
-        metaData.getUserMetadata().entrySet()
+    private Response.ResponseBuilder addObjectHeaders(BlobMetadata metaData, long contentLength,
+                                                      String etag, Response.ResponseBuilder responseBuilder) {
+        Map<String, String> userMetadata = metaData.getUserMetadata();
+        userMetadata.entrySet().stream()
+                .filter(entry -> !RESERVED_METADATA.contains(entry.getKey()))
                 .forEach(entry -> responseBuilder.header(META_HEADER_PREFIX + entry.getKey(), entry.getValue()));
-        return responseBuilder.header(HttpHeaders.CONTENT_LENGTH, metaData.getContentMetadata().getContentLength())
+        if (userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+            responseBuilder.header(DYNAMIC_OBJECT_MANIFEST, userMetadata.get(DYNAMIC_OBJECT_MANIFEST));
+        }
+        return responseBuilder.header(HttpHeaders.CONTENT_LENGTH, contentLength)
                 .header(HttpHeaders.LAST_MODIFIED, metaData.getLastModified())
-                .header(HttpHeaders.ETAG, metaData.getETag())
+                .header(HttpHeaders.ETAG, etag)
                 .header("X-Static-Large-Object", false)
                 .header(HttpHeaders.DATE, new Date())
                 .header(HttpHeaders.CONTENT_TYPE, metaData.getContentMetadata().getContentType());
+    }
+    private Response.ResponseBuilder addObjectHeaders(BlobMetadata metaData, Response.ResponseBuilder responseBuilder) {
+        return addObjectHeaders(metaData, metaData.getSize(), metaData.getETag(), responseBuilder);
     }
 }
