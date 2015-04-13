@@ -49,6 +49,7 @@ import com.bouncestorage.swiftproxy.BlobStoreResource;
 import com.bouncestorage.swiftproxy.COPY;
 import com.bouncestorage.swiftproxy.Utils;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.hash.HashCode;
@@ -67,7 +68,9 @@ import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.http.HttpResponseException;
+import org.jclouds.io.ContentMetadata;
 import org.jclouds.io.MutableContentMetadata;
+import org.jclouds.io.payloads.InputStreamPayload;
 import org.jclouds.openstack.swift.v1.CopyObjectException;
 
 @Path("/v1/{account}/{container}/{object:.*}")
@@ -140,40 +143,8 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         BlobMetadata meta = blob.getMetadata();
-        Hasher hash = Hashing.md5().newHasher();
         if (multiPartManifest == null && meta.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
-            String manifest = meta.getUserMetadata().get(DYNAMIC_OBJECT_MANIFEST);
-            Pair<String, String> param = validateCopyParam(manifest);
-            String dloContainer = param.getFirst();
-            String objectsPrefix = param.getSecond();
-            ListContainerOptions listOptions = new ListContainerOptions()
-                    .recursive()
-                    .afterMarker(objectsPrefix)
-                    .withDetails();
-            Iterable<StorageMetadata> res = Utils.crawlBlobStore(blobStore, dloContainer, listOptions);
-            List<InputStream> segmentStreams = new ArrayList<>();
-            long segmentsTotalLength = 0;
-            for (StorageMetadata sm : res) {
-                if (sm.getName().startsWith(objectsPrefix)) {
-                    Blob segment = blobStore.getBlob(dloContainer, sm.getName());
-                    if (segment != null) {
-                        try {
-                            segmentStreams.add(segment.getPayload().openStream());
-                            segmentsTotalLength += segment.getMetadata().getSize();
-                            hash.putString(segment.getMetadata().getETag(), StandardCharsets.UTF_8);
-                        } catch (IOException e) {
-                            throw propagate(e);
-                        }
-                    }
-                } else {
-                    break;
-                }
-            }
-
-            SequenceInputStream combined =
-                    new SequenceInputStream(Iterators.asEnumeration(segmentStreams.iterator()));
-            return addObjectHeaders(meta, segmentsTotalLength,
-                    '"' + hash.hash().toString() + '"', Response.ok(combined)).build();
+            return getDloObject(blobStore, meta);
         } else {
             try (InputStream is = blob.getPayload().openStream()) {
                 return addObjectHeaders(meta, Response.ok(is)).build();
@@ -181,6 +152,42 @@ public final class ObjectResource extends BlobStoreResource {
                 return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
             }
         }
+    }
+
+    private Response getDloObject(BlobStore blobStore, BlobMetadata meta) {
+        Hasher hash = Hashing.md5().newHasher();
+        String manifest = meta.getUserMetadata().get(DYNAMIC_OBJECT_MANIFEST);
+        Pair<String, String> param = validateCopyParam(manifest);
+        String dloContainer = param.getFirst();
+        String objectsPrefix = param.getSecond();
+        ListContainerOptions listOptions = new ListContainerOptions()
+                .recursive()
+                .afterMarker(objectsPrefix)
+                .withDetails();
+        Iterable<StorageMetadata> res = Utils.crawlBlobStore(blobStore, dloContainer, listOptions);
+        List<InputStream> segmentStreams = new ArrayList<>();
+        long segmentsTotalLength = 0;
+        for (StorageMetadata sm : res) {
+            if (sm.getName().startsWith(objectsPrefix)) {
+                Blob segment = blobStore.getBlob(dloContainer, sm.getName());
+                if (segment != null) {
+                    try {
+                        segmentStreams.add(segment.getPayload().openStream());
+                        segmentsTotalLength += segment.getMetadata().getSize();
+                        hash.putString(segment.getMetadata().getETag(), StandardCharsets.UTF_8);
+                    } catch (IOException e) {
+                        throw propagate(e);
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+
+        SequenceInputStream combined =
+                new SequenceInputStream(Iterators.asEnumeration(segmentStreams.iterator()));
+        return addObjectHeaders(meta, segmentsTotalLength,
+                '"' + hash.hash().toString() + '"', Response.ok(combined)).build();
     }
 
     private static String normalizePath(String pathName) {
@@ -238,6 +245,45 @@ public final class ObjectResource extends BlobStoreResource {
         return res;
     }
 
+    private String emulatedCopyBlob(BlobMetadata meta, String destContainer, String destObject,
+                                    CopyOptions options) {
+        BlobStore blobStore = getBlobStore();
+        Response resp = getDloObject(blobStore, meta);
+        Response.StatusType statusInfo = resp.getStatusInfo();
+        if (statusInfo.equals(Response.Status.OK)) {
+            ContentMetadata contentMetadata = meta.getContentMetadata();
+            Map newMetadata = new HashMap<>();
+            newMetadata.putAll(meta.getUserMetadata());
+            newMetadata.putAll(options.getUserMetadata().or(ImmutableMap.of()));
+            newMetadata.remove(DYNAMIC_OBJECT_MANIFEST);
+            Blob blob = blobStore.blobBuilder(destObject)
+                    .userMetadata(newMetadata)
+                    .payload(new InputStreamPayload((InputStream) resp.getEntity()))
+                    .contentLength(resp.getLength())
+                    .contentDisposition(contentMetadata.getContentDisposition())
+                    .contentEncoding(contentMetadata.getContentEncoding())
+                    .contentType(contentMetadata.getContentType())
+                    .contentLanguage(contentMetadata.getContentLanguage())
+                    .build();
+            return blobStore.putBlob(destContainer, blob);
+        } else {
+            throw new ClientErrorException(statusInfo.getReasonPhrase(), statusInfo.getStatusCode());
+        }
+    }
+
+    private String serverCopyBlob(String container, String objectName, String destContainer,
+                                  String destObject, CopyOptions options) {
+        try {
+            return getBlobStore().copyBlob(container, objectName, destContainer, destObject, options);
+        } catch (CopyObjectException e) {
+            if (e.getCause() instanceof HttpResponseException) {
+                throw (HttpResponseException) e.getCause();
+            } else {
+                throw e;
+            }
+        }
+    }
+
     @COPY
     @Consumes(" ")
     public Response copyObject(@NotNull @PathParam("container") String container,
@@ -284,14 +330,15 @@ public final class ObjectResource extends BlobStoreResource {
             throw propagate(e);
         }
 
+        BlobMetadata meta = blobStore.blobMetadata(container, objectName);
+        if (meta == null) {
+            return notFound();
+        }
+
         CopyOptions options;
         if (additionalUserMeta.isEmpty()) {
             options = CopyOptions.NONE;
         } else {
-            BlobMetadata meta = blobStore.blobMetadata(container, objectName);
-            if (meta == null) {
-                return notFound();
-            }
             Map newMetadata = new HashMap<>();
             newMetadata.putAll(meta.getUserMetadata());
             newMetadata.putAll(additionalUserMeta);
@@ -300,22 +347,22 @@ public final class ObjectResource extends BlobStoreResource {
                     .userMetadata(newMetadata)
                     .build();
         }
-        try {
-            String etag = blobStore.copyBlob(container, objectName, destContainer, destObject, options);
-            return Response.status(Response.Status.CREATED)
-                    .header(HttpHeaders.ETAG, etag)
-                    .header(HttpHeaders.CONTENT_LENGTH, 0)
-                    .header(HttpHeaders.CONTENT_TYPE, contentType)
-                    .header(HttpHeaders.DATE, new Date())
-                    .header("X-Copied-From", copiedFrom)
-                    .build();
-        } catch (CopyObjectException e) {
-            if (e.getCause() instanceof HttpResponseException) {
-                throw (HttpResponseException) e.getCause();
-            } else {
-                throw e;
-            }
+
+        Map<String, String> userMetadata = meta.getUserMetadata();
+        String etag;
+        if (userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+            // copy is supposed to flatten the large object, which we have to emulate
+            etag = emulatedCopyBlob(meta, destContainer, destObject, options);
+        } else {
+            etag = serverCopyBlob(container, objectName, destContainer, destObject, options);
         }
+        return Response.status(Response.Status.CREATED)
+                .header(HttpHeaders.ETAG, etag)
+                .header(HttpHeaders.CONTENT_LENGTH, 0)
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(HttpHeaders.DATE, new Date())
+                .header("X-Copied-From", copiedFrom)
+                .build();
     }
 
     // TODO: actually handle this, jclouds doesn't support metadata update yet
