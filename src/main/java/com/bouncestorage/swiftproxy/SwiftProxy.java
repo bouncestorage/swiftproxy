@@ -13,6 +13,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
 
+import javax.ws.rs.ext.RuntimeDelegate;
+
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.filter.LoggingFilter;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
@@ -36,6 +38,7 @@ public final class SwiftProxy {
             rc.register(new LoggingFilter(java.util.logging.Logger.getGlobal(), true));
         }
         server = GrizzlyHttpServerFactory.createHttpServer(endpoint, rc, false);
+        RuntimeDelegate.setInstance(new RuntimeDelegateImpl(RuntimeDelegate.getInstance()));
     }
 
     public URI getEndpoint() {
