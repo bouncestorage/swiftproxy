@@ -515,7 +515,9 @@ public final class ObjectResource extends BlobStoreResource {
             }
             try {
                 String remoteETag = getBlobStore().putBlob(container, builder.build());
+                BlobMetadata meta = getBlobStore().blobMetadata(container, objectName);
                 return Response.status(Response.Status.CREATED).header(HttpHeaders.ETAG, remoteETag)
+                        .header(HttpHeaders.LAST_MODIFIED, meta.getLastModified())
                         .header(HttpHeaders.CONTENT_LENGTH, 0)
                         .header(HttpHeaders.CONTENT_TYPE, contentType)
                         .header(HttpHeaders.DATE, new Date()).build();
