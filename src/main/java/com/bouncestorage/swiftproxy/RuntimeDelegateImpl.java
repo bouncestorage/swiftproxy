@@ -7,6 +7,8 @@ package com.bouncestorage.swiftproxy;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.Map;
+
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.Link;
 import javax.ws.rs.core.MediaType;
@@ -65,7 +67,17 @@ public final class RuntimeDelegateImpl extends RuntimeDelegate {
         }
 
         public String toString() {
-            return type;
+            StringBuilder res = new StringBuilder(type);
+            Map<String, String> params = getParameters();
+            if (params != null) {
+                for (Map.Entry<String, String> entries : params.entrySet()) {
+                    res.append("; ");
+                    res.append(entries.getKey());
+                    res.append('=');
+                    res.append(entries.getValue());
+                }
+            }
+            return res.toString();
         }
     }
 
