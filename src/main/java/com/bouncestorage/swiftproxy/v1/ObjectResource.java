@@ -132,10 +132,23 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("Range") String range,
                               @HeaderParam("If-Match") String ifMatch,
                               @HeaderParam("If-None-Match") String ifNoneMatch,
-                              @HeaderParam("If-Modified-Since") String ifModifiedSince,
-                              @HeaderParam("If-Unmodified-Since") String ifUnmodifiedSince) {
+                              @HeaderParam("If-Modified-Since") Date ifModifiedSince,
+                              @HeaderParam("If-Unmodified-Since") Date ifUnmodifiedSince) {
         GetOptions options = parseRange(new GetOptions(), range);
         BlobStore blobStore = getBlobStore();
+
+        if (ifMatch != null) {
+            options.ifETagMatches(ifMatch);
+        }
+        if (ifNoneMatch != null) {
+            options.ifETagDoesntMatch(ifNoneMatch);
+        }
+        if (ifModifiedSince != null) {
+            options.ifModifiedSince(ifModifiedSince);
+        }
+        if (ifUnmodifiedSince != null) {
+            options.ifUnmodifiedSince(ifUnmodifiedSince);
+        }
 
         Blob blob = blobStore.getBlob(container, object, options);
         if (blob == null) {
