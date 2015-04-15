@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.StringTokenizer;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -486,7 +485,6 @@ public final class ObjectResource extends BlobStoreResource {
     }
 
     private void validateManifest(ManifestEntry[] res) {
-        AtomicLong totalLength = new AtomicLong();
         BlobStore blobStore = getBlobStore();
         Arrays.stream(res).parallel()
                 .forEach(s -> {
@@ -505,7 +503,6 @@ public final class ObjectResource extends BlobStoreResource {
 
                         throw new ClientErrorException(Response.Status.CONFLICT);
                     }
-                    totalLength.getAndAdd(s.size_bytes);
                 });
     }
 
@@ -565,7 +562,8 @@ public final class ObjectResource extends BlobStoreResource {
             try (TeeInputStream tee = new TeeInputStream(request.getInputStream(), buffer, true)) {
                 ManifestEntry[] manifest = readSLOManifest(tee);
                 validateManifest(manifest);
-                metadata.put(STATIC_OBJECT_MANIFEST, "true");
+                Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(Arrays.asList(manifest));
+                metadata.put(STATIC_OBJECT_MANIFEST, sizeAndEtag.getFirst() + " " + sizeAndEtag.getSecond());
                 copiedStream = new ByteArrayInputStream(buffer.toByteArray());
             } catch (IOException e) {
                 throw propagate(e);
@@ -631,6 +629,12 @@ public final class ObjectResource extends BlobStoreResource {
         BlobMetadata meta = getBlobStore().blobMetadata(container, objectName);
         if (meta == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
+        }
+
+        if (meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
+            String sloData = meta.getUserMetadata().get(STATIC_OBJECT_MANIFEST);
+            String[] data = sloData.split(" ", 2);
+            return addObjectHeaders(meta, Long.valueOf(data[0]), data[1], Response.ok()).build();
         }
 
         // TODO: We should be sending a 204 (No Content), but cannot due to https://java.net/jira/browse/JERSEY-2822

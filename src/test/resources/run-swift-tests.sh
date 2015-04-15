@@ -151,6 +151,8 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFileComparison \
         test.functional.tests:TestSlo.test_slo_get_simple_manifest \
         test.functional.tests:TestSlo.test_slo_get_nested_manifest \
+        test.functional.tests:TestSlo.test_slo_etag_is_hash_of_etags \
+        test.functional.tests:TestSlo.test_slo_etag_is_hash_of_etags_submanifests \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
