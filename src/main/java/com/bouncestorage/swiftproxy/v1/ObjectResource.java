@@ -25,10 +25,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.StringTokenizer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -92,6 +94,7 @@ public final class ObjectResource extends BlobStoreResource {
             DYNAMIC_OBJECT_MANIFEST,
             STATIC_OBJECT_MANIFEST
     );
+    private static final MediaType MANIFEST_CONTENT_TYPE = MediaType.APPLICATION_JSON_TYPE.withCharset("utf-8");
 
     private static GetOptions parseRange(GetOptions options, String range) {
         if (range != null) {
@@ -172,16 +175,25 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         BlobMetadata meta = blob.getMetadata();
-        if (!multiPartManifest) {
-            if (meta.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+        boolean isMultiPartManifest = false;
+        if (meta.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+            isMultiPartManifest = true;
+            if (!multiPartManifest) {
                 return getDloObject(blobStore, meta);
-            } else if (meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
+            }
+        } else if (meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
+            isMultiPartManifest = true;
+            if (!multiPartManifest) {
                 return getSloObject(blobStore, blob);
             }
         }
 
         try {
-            return addObjectHeaders(meta, Response.ok(blob.getPayload().openStream())).build();
+            return addObjectHeaders(Response.ok(blob.getPayload().openStream()), meta,
+                    isMultiPartManifest ?
+                            Optional.of(ImmutableMap.of(HttpHeaders.CONTENT_TYPE, MANIFEST_CONTENT_TYPE)) :
+                            Optional.empty())
+                    .build();
         } catch (IOException e) {
             throw propagate(e);
         }
@@ -193,9 +205,9 @@ public final class ObjectResource extends BlobStoreResource {
             Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(entries);
 
             InputStream combined = new ManifestObjectInputStream(blobStore, entries);
-            return addObjectHeaders(blob.getMetadata(), sizeAndEtag.getFirst(), sizeAndEtag.getSecond(),
-                    Response.ok(combined)).build();
-
+            return addObjectHeaders(Response.ok(combined), blob.getMetadata(),
+                    Optional.of(overwriteSizeAndETag(sizeAndEtag.getFirst(), sizeAndEtag.getSecond())))
+                    .build();
         } catch (IOException e) {
             throw propagate(e);
         }
@@ -229,8 +241,9 @@ public final class ObjectResource extends BlobStoreResource {
         Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(segments);
 
         InputStream combined = new ManifestObjectInputStream(blobStore, segments);
-        return addObjectHeaders(meta, sizeAndEtag.getFirst(), sizeAndEtag.getSecond(),
-                Response.ok(combined)).build();
+        return addObjectHeaders(Response.ok(combined), meta,
+                Optional.of(overwriteSizeAndETag(sizeAndEtag.getFirst(), sizeAndEtag.getSecond())))
+                .build();
     }
 
     private static String normalizePath(String pathName) {
@@ -631,7 +644,8 @@ public final class ObjectResource extends BlobStoreResource {
     public Response headObject(@NotNull @PathParam("container") String container,
                                @NotNull @Encoded @PathParam("object") String objectName,
                                @NotNull @PathParam("account") String account,
-                               @HeaderParam("X-Auth-Token") String authToken) {
+                               @HeaderParam("X-Auth-Token") String authToken,
+                               @QueryParam("multipart-manifest") String multiPartManifest) {
         if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
             return badRequest();
         }
@@ -641,14 +655,24 @@ public final class ObjectResource extends BlobStoreResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
+        boolean isMultiPartManifest = false;
         if (meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
-            String sloData = meta.getUserMetadata().get(STATIC_OBJECT_MANIFEST);
-            String[] data = sloData.split(" ", 2);
-            return addObjectHeaders(meta, Long.valueOf(data[0]), data[1], Response.ok()).build();
+            isMultiPartManifest = true;
+            if (!"get".equals(multiPartManifest)) {
+                String sloData = meta.getUserMetadata().get(STATIC_OBJECT_MANIFEST);
+                String[] data = sloData.split(" ", 2);
+                return addObjectHeaders(Response.ok(), meta,
+                        Optional.of(overwriteSizeAndETag(Long.valueOf(data[0]), data[1])))
+                        .build();
+            }
         }
 
         // TODO: We should be sending a 204 (No Content), but cannot due to https://java.net/jira/browse/JERSEY-2822
-        return addObjectHeaders(meta, Response.ok()).build();
+        return addObjectHeaders(Response.ok(), meta,
+                isMultiPartManifest ?
+                        Optional.of(ImmutableMap.of(HttpHeaders.CONTENT_TYPE, MANIFEST_CONTENT_TYPE)) :
+                        Optional.empty())
+                .build();
     }
 
     @DELETE
@@ -677,8 +701,13 @@ public final class ObjectResource extends BlobStoreResource {
                 .build();
     }
 
-    private Response.ResponseBuilder addObjectHeaders(BlobMetadata metaData, long contentLength,
-                                                      String etag, Response.ResponseBuilder responseBuilder) {
+    private Map<String, Object> overwriteSizeAndETag(long size, String etag) {
+        return ImmutableMap.of(HttpHeaders.CONTENT_LENGTH, size,
+                HttpHeaders.ETAG, etag);
+    }
+
+    private Response.ResponseBuilder addObjectHeaders(Response.ResponseBuilder responseBuilder, BlobMetadata metaData,
+                                                      Optional<Map<String, Object>> overwrites) {
         Map<String, String> userMetadata = metaData.getUserMetadata();
         userMetadata.entrySet().stream()
                 .filter(entry -> !RESERVED_METADATA.contains(entry.getKey()))
@@ -686,15 +715,29 @@ public final class ObjectResource extends BlobStoreResource {
         if (userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
             responseBuilder.header(DYNAMIC_OBJECT_MANIFEST, userMetadata.get(DYNAMIC_OBJECT_MANIFEST));
         }
-        return responseBuilder.header(HttpHeaders.CONTENT_LENGTH, contentLength)
-                .header(HttpHeaders.LAST_MODIFIED, metaData.getLastModified())
-                .header(HttpHeaders.ETAG, etag)
-                .header("X-Static-Large-Object", userMetadata.containsKey(STATIC_OBJECT_MANIFEST))
-                .header(HttpHeaders.DATE, new Date())
-                .header(HttpHeaders.CONTENT_TYPE, metaData.getContentMetadata().getContentType());
+
+        Map<String, Supplier<Object>> defaultHeaders = ImmutableMap.<String, Supplier<Object>>builder()
+                .put(HttpHeaders.CONTENT_LENGTH, metaData::getSize)
+                .put(HttpHeaders.LAST_MODIFIED, metaData::getLastModified)
+                .put(HttpHeaders.ETAG, metaData::getETag)
+                .put(STATIC_OBJECT_MANIFEST, () -> userMetadata.containsKey(STATIC_OBJECT_MANIFEST))
+                .put(HttpHeaders.DATE, Date::new)
+                .put(HttpHeaders.CONTENT_TYPE, () -> metaData.getContentMetadata().getContentType())
+                .build();
+
+        overwrites.ifPresent(headers ->
+                headers.forEach((k, v) -> responseBuilder.header(k, v)));
+        defaultHeaders.forEach((k, v) -> {
+            if (!overwrites.isPresent() || !overwrites.get().containsKey(k)) {
+                responseBuilder.header(k, v.get());
+            }
+        });
+
+        return responseBuilder;
     }
-    private Response.ResponseBuilder addObjectHeaders(BlobMetadata metaData, Response.ResponseBuilder responseBuilder) {
-        return addObjectHeaders(metaData, metaData.getSize(), metaData.getETag(), responseBuilder);
+
+    private Response.ResponseBuilder addObjectHeaders(Response.ResponseBuilder responseBuilder, BlobMetadata metaData) {
+        return addObjectHeaders(responseBuilder, metaData, Optional.empty());
     }
 
     private class ManifestObjectInputStream extends InputStream {
