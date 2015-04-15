@@ -181,10 +181,10 @@ public final class ObjectResource extends BlobStoreResource {
             }
         }
 
-        try (InputStream is = blob.getPayload().openStream()) {
-            return addObjectHeaders(meta, Response.ok(is)).build();
+        try {
+            return addObjectHeaders(meta, Response.ok(blob.getPayload().openStream())).build();
         } catch (IOException e) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+            throw propagate(e);
         }
     }
 
@@ -213,7 +213,6 @@ public final class ObjectResource extends BlobStoreResource {
                 .afterMarker(objectsPrefix)
                 .withDetails();
         Iterable<StorageMetadata> res = Utils.crawlBlobStore(blobStore, dloContainer, listOptions);
-        long segmentsTotalLength = 0;
 
         List<ManifestEntry> segments = new ArrayList<>();
         for (StorageMetadata sm : res) {
@@ -492,6 +491,9 @@ public final class ObjectResource extends BlobStoreResource {
         Arrays.stream(res).parallel()
                 .forEach(s -> {
                     Response r = getObject(blobStore, s.container, s.object, GetOptions.NONE, false);
+                    if (!r.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
+                        throw new ClientErrorException(Response.Status.CONFLICT);
+                    }
                     long size = Long.valueOf(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
                     String etag = r.getHeaderString(HttpHeaders.ETAG);
                     if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
@@ -685,38 +687,51 @@ public final class ObjectResource extends BlobStoreResource {
         private final Iterator<ManifestEntry> entries;
         private final BlobStore blobStore;
         private InputStream currentStream;
+        private long availableBytes;
         ManifestObjectInputStream(BlobStore blobStore, Iterable<ManifestEntry> entries) {
             this.blobStore = requireNonNull(blobStore);
             this.entries = requireNonNull(entries).iterator();
         }
 
         void openNextStream() throws IOException {
-            if (!entries.hasNext()) {
+            if (currentStream != null) {
+                currentStream.close();
                 currentStream = null;
+                availableBytes = 0;
+            }
+            if (!entries.hasNext()) {
                 return;
             }
 
             ManifestEntry entry = entries.next();
-            Blob blob = blobStore.getBlob(entry.container, entry.object);
-            if (blob == null || entry.size_bytes != blob.getMetadata().getSize() ||
-                    !entry.etag.equals(blob.getMetadata().getETag())) {
-                logger.error("409 conflict: {}/{} {} {} != {} {}",
-                        entry.container, entry.object, entry.etag, entry.size_bytes,
-                        blob.getMetadata().getETag(), blob.getMetadata().getSize());
+            logger.info("opening {}/{}", entry.container, entry.object);
+            Response resp = getObject(blobStore, entry.container, entry.object, GetOptions.NONE, false);
+            if (!resp.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
                 throw new ClientErrorException(Response.Status.CONFLICT);
             }
+            availableBytes = Long.valueOf(resp.getHeaderString(HttpHeaders.CONTENT_LENGTH));
+            currentStream = (InputStream) resp.getEntity();
+            String etag = resp.getHeaderString(HttpHeaders.ETAG);
+            if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
+                etag = etag.substring(1, etag.length() - 1);
+            }
 
-            currentStream = blob.getPayload().openStream();
+            if (entry.size_bytes != availableBytes || !entry.etag.equals(etag)) {
+                logger.error("409 conflict: {}/{} {} {} != {} {}",
+                        entry.container, entry.object, entry.etag, entry.size_bytes,
+                        etag, availableBytes);
+                throw new ClientErrorException(Response.Status.CONFLICT);
+            }
         }
 
         @Override
         public int read() throws IOException {
-            if (currentStream == null) {
+            if (currentStream == null || availableBytes == 0) {
                 openNextStream();
             }
 
             do {
-                if (currentStream == null) {
+                if (currentStream == null || availableBytes == 0) {
                     return -1;
                 }
                 try {
@@ -724,10 +739,14 @@ public final class ObjectResource extends BlobStoreResource {
                     if (res == -1) {
                         openNextStream();
                     } else {
+                        availableBytes--;
                         return res;
                     }
                 } catch (EOFException e) {
                     openNextStream();
+                } catch (IOException e) {
+                    logger.error("error with {} bytes left", availableBytes);
+                    throw e;
                 }
             } while (true);
         }
