@@ -288,17 +288,15 @@ public final class ObjectResource extends BlobStoreResource {
         return res;
     }
 
-    private String emulatedCopyBlob(BlobMetadata meta, String destContainer, String destObject,
-                                    CopyOptions options) {
-        BlobStore blobStore = getBlobStore();
-        Response resp = getDloObject(blobStore, meta);
+    private String emulateCopyBlob(BlobStore blobStore, Response resp, BlobMetadata meta,
+                                   String destContainer, String destObject, CopyOptions options) {
         Response.StatusType statusInfo = resp.getStatusInfo();
         if (statusInfo.equals(Response.Status.OK)) {
             ContentMetadata contentMetadata = meta.getContentMetadata();
             Map newMetadata = new HashMap<>();
             newMetadata.putAll(meta.getUserMetadata());
             newMetadata.putAll(options.getUserMetadata().or(ImmutableMap.of()));
-            newMetadata.remove(DYNAMIC_OBJECT_MANIFEST);
+            RESERVED_METADATA.forEach(s -> newMetadata.remove(s));
             Blob blob = blobStore.blobBuilder(destObject)
                     .userMetadata(newMetadata)
                     .payload(new InputStreamPayload((InputStream) resp.getEntity()))
@@ -312,6 +310,7 @@ public final class ObjectResource extends BlobStoreResource {
         } else {
             throw new ClientErrorException(statusInfo.getReasonPhrase(), statusInfo.getStatusCode());
         }
+
     }
 
     private String serverCopyBlob(String container, String objectName, String destContainer,
@@ -393,11 +392,22 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         Map<String, String> userMetadata = meta.getUserMetadata();
-        String etag;
-        if (!"get".equals(multiPartManifest) && userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+        String etag = null;
+        if (!"get".equals(multiPartManifest)) {
             // copy is supposed to flatten the large object, which we have to emulate
-            etag = emulatedCopyBlob(meta, destContainer, destObject, options);
-        } else {
+            Response resp = null;
+            if (userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+                resp = getDloObject(blobStore, meta);
+            } else if (userMetadata.containsKey(STATIC_OBJECT_MANIFEST)) {
+                resp = getSloObject(blobStore, blobStore.getBlob(container, objectName));
+            }
+
+            if (resp != null) {
+                etag = emulateCopyBlob(blobStore, resp, meta, destContainer, destObject, options);
+            }
+        }
+
+        if (etag == null) {
             etag = serverCopyBlob(container, objectName, destContainer, destObject, options);
         }
         return Response.status(Response.Status.CREATED)
@@ -498,10 +508,10 @@ public final class ObjectResource extends BlobStoreResource {
                         etag = etag.substring(1, etag.length() - 1);
                     }
                     if (s.size_bytes != size || !s.etag.equals(etag)) {
-                        logger.error("409 conflict: {}/{} {} {} != {} {}",
+                        logger.error("400 bad request: {}/{} {} {} != {} {}",
                                 s.container, s.object, s.etag, s.size_bytes, etag, size);
 
-                        throw new ClientErrorException(Response.Status.CONFLICT);
+                        throw new ClientErrorException(Response.Status.BAD_REQUEST);
                     }
                 });
     }
