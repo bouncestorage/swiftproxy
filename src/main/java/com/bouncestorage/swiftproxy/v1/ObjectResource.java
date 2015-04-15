@@ -680,7 +680,7 @@ public final class ObjectResource extends BlobStoreResource {
                                  @NotNull @PathParam("container") String container,
                                  @NotNull @Encoded @PathParam("object") String objectName,
                                  @QueryParam("multipart-manifest") String multipartManifest,
-                                 @HeaderParam("X-Auth-Token") String authToken) {
+                                 @HeaderParam("X-Auth-Token") String authToken) throws IOException {
         if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
             return badRequest();
         }
@@ -694,6 +694,14 @@ public final class ObjectResource extends BlobStoreResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
+        if ("delete".equals(multipartManifest) && meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
+            Blob blob = store.getBlob(container, objectName);
+            if (blob == null) {
+                return notFound();
+            }
+            ManifestEntry[] entries = readSLOManifest(blob.getPayload().openStream());
+            Arrays.stream(entries).parallel().forEach(e -> store.removeBlob(e.container, e.object));
+        }
         store.removeBlob(container, objectName);
 
         return Response.noContent()
