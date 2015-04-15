@@ -9,6 +9,8 @@ import static java.util.Objects.requireNonNull;
 
 import static com.google.common.base.Throwables.propagate;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -63,6 +65,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 
+import org.apache.commons.io.input.TeeInputStream;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.utils.Pair;
 import org.jclouds.blobstore.BlobStore;
@@ -462,15 +465,9 @@ public final class ObjectResource extends BlobStoreResource {
         }
     }
 
-    private ManifestEntry[] readSLOManifest(InputStream in) {
+    private ManifestEntry[] readSLOManifest(InputStream in) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        ManifestEntry[] res;
-        try {
-            res = mapper.readValue(in, ManifestEntry[].class);
-        } catch (IOException e) {
-            throw propagate(e);
-        }
-
+        ManifestEntry[] res = mapper.readValue(in, ManifestEntry[].class);
         if (res.length > 1000) {
             throw new ClientErrorException(Response.Status.BAD_REQUEST);
         }
@@ -494,8 +491,16 @@ public final class ObjectResource extends BlobStoreResource {
         BlobStore blobStore = getBlobStore();
         Arrays.stream(res).parallel()
                 .forEach(s -> {
-                    BlobMetadata meta = blobStore.blobMetadata(s.container, s.object);
-                    if (s.size_bytes != meta.getSize() || !s.etag.equals(meta.getETag())) {
+                    Response r = getObject(blobStore, s.container, s.object, GetOptions.NONE, false);
+                    long size = Long.valueOf(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
+                    String etag = r.getHeaderString(HttpHeaders.ETAG);
+                    if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
+                        etag = etag.substring(1, etag.length() - 1);
+                    }
+                    if (s.size_bytes != size || !s.etag.equals(etag)) {
+                        logger.error("409 conflict: {}/{} {} {} != {} {}",
+                                s.container, s.object, s.etag, s.size_bytes, etag, size);
+
                         throw new ClientErrorException(Response.Status.CONFLICT);
                     }
                     totalLength.getAndAdd(s.size_bytes);
@@ -506,7 +511,7 @@ public final class ObjectResource extends BlobStoreResource {
     public Response putObject(@NotNull @PathParam("container") String container,
                               @NotNull @Encoded @PathParam("object") String objectName,
                               @NotNull @PathParam("account") String account,
-                              @QueryParam("multipart-manifest") boolean multiPartManifest,
+                              @QueryParam("multipart-manifest") String multiPartManifest,
                               @QueryParam("signature") String signature,
                               @QueryParam("expires") String expires,
                               @HeaderParam(DYNAMIC_OBJECT_MANIFEST) String objectManifest,
@@ -551,11 +556,18 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         Map<String, String> metadata = getUserMetadata(request);
+        InputStream copiedStream = null;
 
         if ("put".equals(multiPartManifest)) {
-            ManifestEntry[] manifest = readSLOManifest(request.getInputStream());
-            validateManifest(manifest);
-            metadata.put(STATIC_OBJECT_MANIFEST, "true");
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            try (TeeInputStream tee = new TeeInputStream(request.getInputStream(), buffer, true)) {
+                ManifestEntry[] manifest = readSLOManifest(tee);
+                validateManifest(manifest);
+                metadata.put(STATIC_OBJECT_MANIFEST, "true");
+                copiedStream = new ByteArrayInputStream(buffer.toByteArray());
+            } catch (IOException e) {
+                throw propagate(e);
+            }
         } else if (objectManifest != null) {
             metadata.put(DYNAMIC_OBJECT_MANIFEST, objectManifest);
         }
@@ -576,7 +588,7 @@ public final class ObjectResource extends BlobStoreResource {
             }
         }
 
-        try (InputStream is = request.getInputStream()) {
+        try (InputStream is = copiedStream != null ? copiedStream : request.getInputStream()) {
             BlobBuilder.PayloadBlobBuilder builder = getBlobStore().blobBuilder(objectName)
                     .userMetadata(metadata)
                     .payload(is);

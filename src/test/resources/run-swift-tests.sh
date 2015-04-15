@@ -71,6 +71,9 @@ max_container_name_length = 256
 strict_cors_mode = true
 allow_account_management = false
 
+[slo]
+max_manifest_segments = 1000
+
 EOF
 
 export PYTHONUNBUFFERED=1
