@@ -17,6 +17,8 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.Variant;
 import javax.ws.rs.ext.RuntimeDelegate;
 
+import com.google.common.base.Joiner;
+
 public final class RuntimeDelegateImpl extends RuntimeDelegate {
     private static final MediaTypeProvider MEDIA_TYPE_PROVIDER = new MediaTypeProvider();
     private final RuntimeDelegate delegate;
@@ -69,13 +71,9 @@ public final class RuntimeDelegateImpl extends RuntimeDelegate {
         public String toString() {
             StringBuilder res = new StringBuilder(type);
             Map<String, String> params = getParameters();
-            if (params != null) {
-                for (Map.Entry<String, String> entries : params.entrySet()) {
-                    res.append("; ");
-                    res.append(entries.getKey());
-                    res.append('=');
-                    res.append(entries.getValue());
-                }
+            if (params != null && !params.isEmpty()) {
+                res.append("; ");
+                res.append(Joiner.on("; ").withKeyValueSeparator("=").join(params));
             }
             return res.toString();
         }
@@ -89,6 +87,18 @@ public final class RuntimeDelegateImpl extends RuntimeDelegate {
             } catch (IllegalArgumentException e) {
                 return new InvalidMediaType(header);
             }
+        }
+
+        @Override
+        public String toString(MediaType type) {
+            StringBuilder res = new StringBuilder();
+            res.append(type.getType()).append('/').append(type.getSubtype());
+            Map<String, String> params = type.getParameters();
+            if (params != null && !params.isEmpty()) {
+                res.append("; ");
+                res.append(Joiner.on("; ").withKeyValueSeparator("=").join(params));
+            }
+            return res.toString();
         }
     }
 }
