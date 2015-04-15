@@ -146,6 +146,7 @@ if [ $# == 0 ]; then
         test.functional.tests:TestDlo.test_copy_account \
         test.functional.tests:TestDlo.test_copy_manifest \
         test.functional.tests:TestFileComparison \
+        test.functional.tests:TestSlo.test_slo_get_simple_manifest \
 
 else
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@

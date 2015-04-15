@@ -5,15 +5,18 @@
 
 package com.bouncestorage.swiftproxy.v1;
 
+import static java.util.Objects.requireNonNull;
+
 import static com.google.common.base.Throwables.propagate;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.SequenceInputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
@@ -24,6 +27,7 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -43,11 +47,14 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.BlobStoreResource;
 import com.bouncestorage.swiftproxy.COPY;
 import com.bouncestorage.swiftproxy.Utils;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -78,8 +85,10 @@ public final class ObjectResource extends BlobStoreResource {
     private static final String META_HEADER_PREFIX = "x-object-meta-";
     private static final int MAX_OBJECT_NAME_LENGTH = 1024;
     private static final String DYNAMIC_OBJECT_MANIFEST = "x-object-manifest";
+    private static final String STATIC_OBJECT_MANIFEST = "x-static-large-object";
     private static final Set<String> RESERVED_METADATA = ImmutableSet.of(
-            DYNAMIC_OBJECT_MANIFEST
+            DYNAMIC_OBJECT_MANIFEST,
+            STATIC_OBJECT_MANIFEST
     );
 
     private static GetOptions parseRange(GetOptions options, String range) {
@@ -150,57 +159,77 @@ public final class ObjectResource extends BlobStoreResource {
             options.ifUnmodifiedSince(ifUnmodifiedSince);
         }
 
+        return getObject(blobStore, container, object, options, "get".equals(multiPartManifest));
+    }
+
+    private Response getObject(BlobStore blobStore, String container, String object, GetOptions options,
+                               boolean multiPartManifest) {
         Blob blob = blobStore.getBlob(container, object, options);
         if (blob == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
         BlobMetadata meta = blob.getMetadata();
-        if (multiPartManifest == null && meta.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
-            return getDloObject(blobStore, meta);
-        } else {
-            try (InputStream is = blob.getPayload().openStream()) {
-                return addObjectHeaders(meta, Response.ok(is)).build();
-            } catch (IOException e) {
-                return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        if (!multiPartManifest) {
+            if (meta.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+                return getDloObject(blobStore, meta);
+            } else if (meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
+                return getSloObject(blobStore, blob);
             }
+        }
+
+        try (InputStream is = blob.getPayload().openStream()) {
+            return addObjectHeaders(meta, Response.ok(is)).build();
+        } catch (IOException e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private Response getSloObject(BlobStore blobStore, Blob blob) {
+        try {
+            Iterable<ManifestEntry> entries = Arrays.asList(readSLOManifest(blob.getPayload().openStream()));
+            Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(entries);
+
+            InputStream combined = new ManifestObjectInputStream(blobStore, entries);
+            return addObjectHeaders(blob.getMetadata(), sizeAndEtag.getFirst(), sizeAndEtag.getSecond(),
+                    Response.ok(combined)).build();
+
+        } catch (IOException e) {
+            throw propagate(e);
         }
     }
 
     private Response getDloObject(BlobStore blobStore, BlobMetadata meta) {
-        Hasher hash = Hashing.md5().newHasher();
         String manifest = meta.getUserMetadata().get(DYNAMIC_OBJECT_MANIFEST);
         Pair<String, String> param = validateCopyParam(manifest);
         String dloContainer = param.getFirst();
         String objectsPrefix = param.getSecond();
+        /* jclouds doesn't really support prefixed listing, so faking it with marker */
         ListContainerOptions listOptions = new ListContainerOptions()
                 .recursive()
                 .afterMarker(objectsPrefix)
                 .withDetails();
         Iterable<StorageMetadata> res = Utils.crawlBlobStore(blobStore, dloContainer, listOptions);
-        List<InputStream> segmentStreams = new ArrayList<>();
         long segmentsTotalLength = 0;
+
+        List<ManifestEntry> segments = new ArrayList<>();
         for (StorageMetadata sm : res) {
             if (sm.getName().startsWith(objectsPrefix)) {
-                Blob segment = blobStore.getBlob(dloContainer, sm.getName());
-                if (segment != null) {
-                    try {
-                        segmentStreams.add(segment.getPayload().openStream());
-                        segmentsTotalLength += segment.getMetadata().getSize();
-                        hash.putString(segment.getMetadata().getETag(), StandardCharsets.UTF_8);
-                    } catch (IOException e) {
-                        throw propagate(e);
-                    }
-                }
+                ManifestEntry entry = new ManifestEntry();
+                entry.container = dloContainer;
+                entry.object = sm.getName();
+                entry.size_bytes = sm.getSize();
+                entry.etag = sm.getETag();
+                segments.add(entry);
             } else {
                 break;
             }
         }
+        Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(segments);
 
-        SequenceInputStream combined =
-                new SequenceInputStream(Iterators.asEnumeration(segmentStreams.iterator()));
-        return addObjectHeaders(meta, segmentsTotalLength,
-                '"' + hash.hash().toString() + '"', Response.ok(combined)).build();
+        InputStream combined = new ManifestObjectInputStream(blobStore, segments);
+        return addObjectHeaders(meta, sizeAndEtag.getFirst(), sizeAndEtag.getSecond(),
+                Response.ok(combined)).build();
     }
 
     private static String normalizePath(String pathName) {
@@ -433,6 +462,46 @@ public final class ObjectResource extends BlobStoreResource {
         }
     }
 
+    private ManifestEntry[] readSLOManifest(InputStream in) {
+        ObjectMapper mapper = new ObjectMapper();
+        ManifestEntry[] res;
+        try {
+            res = mapper.readValue(in, ManifestEntry[].class);
+        } catch (IOException e) {
+            throw propagate(e);
+        }
+
+        if (res.length > 1000) {
+            throw new ClientErrorException(Response.Status.BAD_REQUEST);
+        }
+
+        return res;
+    }
+
+    private Pair<Long, String> getManifestTotalSizeAndETag(Iterable<ManifestEntry> entries) {
+        Hasher hash = Hashing.md5().newHasher();
+        long segmentsTotalLength = 0;
+        for (ManifestEntry entry : entries) {
+            hash.putString(entry.etag, StandardCharsets.UTF_8);
+            segmentsTotalLength += entry.size_bytes;
+        }
+
+        return new Pair<>(segmentsTotalLength, '"' + hash.hash().toString() + '"');
+    }
+
+    private void validateManifest(ManifestEntry[] res) {
+        AtomicLong totalLength = new AtomicLong();
+        BlobStore blobStore = getBlobStore();
+        Arrays.stream(res).parallel()
+                .forEach(s -> {
+                    BlobMetadata meta = blobStore.blobMetadata(s.container, s.object);
+                    if (s.size_bytes != meta.getSize() || !s.etag.equals(meta.getETag())) {
+                        throw new ClientErrorException(Response.Status.CONFLICT);
+                    }
+                    totalLength.getAndAdd(s.size_bytes);
+                });
+    }
+
     @PUT
     public Response putObject(@NotNull @PathParam("container") String container,
                               @NotNull @Encoded @PathParam("object") String objectName,
@@ -444,7 +513,7 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("X-Auth-Token") String authToken,
                               @HeaderParam(HttpHeaders.CONTENT_LENGTH) String contentLengthParam,
                               @HeaderParam("Transfer-Encoding") String transferEncoding,
-                              @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
+                              @HeaderParam(HttpHeaders.CONTENT_TYPE) MediaType contentType,
                               @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                               @HeaderParam("X-Copy-From") String copyFrom,
                               @HeaderParam("X-Copy-From-Account") String copyFromAccount,
@@ -477,12 +546,17 @@ public final class ObjectResource extends BlobStoreResource {
         if (copyFrom != null) {
             Pair<String, String> copy = validateCopyParam(copyFrom);
             return copyObject(copy.getFirst(), copy.getSecond(), copyFromAccount, authToken,
-                    container + "/" + objectName, account, null, contentType, contentEncoding, contentDisposition,
+                    container + "/" + objectName, account, null, contentType.toString(), contentEncoding, contentDisposition,
                     request);
         }
 
         Map<String, String> metadata = getUserMetadata(request);
-        if (objectManifest != null) {
+
+        if ("put".equals(multiPartManifest)) {
+            ManifestEntry[] manifest = readSLOManifest(request.getInputStream());
+            validateManifest(manifest);
+            metadata.put(STATIC_OBJECT_MANIFEST, "true");
+        } else if (objectManifest != null) {
             metadata.put(DYNAMIC_OBJECT_MANIFEST, objectManifest);
         }
 
@@ -505,8 +579,10 @@ public final class ObjectResource extends BlobStoreResource {
         try (InputStream is = request.getInputStream()) {
             BlobBuilder.PayloadBlobBuilder builder = getBlobStore().blobBuilder(objectName)
                     .userMetadata(metadata)
-                    .payload(is)
-                    .contentType(contentType(contentType));
+                    .payload(is);
+            if (contentType != null) {
+                builder.contentType(contentType(contentType.toString()));
+            }
             if (contentLengthParam != null) {
                 builder.contentLength(contentLength);
             }
@@ -585,11 +661,76 @@ public final class ObjectResource extends BlobStoreResource {
         return responseBuilder.header(HttpHeaders.CONTENT_LENGTH, contentLength)
                 .header(HttpHeaders.LAST_MODIFIED, metaData.getLastModified())
                 .header(HttpHeaders.ETAG, etag)
-                .header("X-Static-Large-Object", false)
+                .header("X-Static-Large-Object", userMetadata.containsKey(STATIC_OBJECT_MANIFEST))
                 .header(HttpHeaders.DATE, new Date())
                 .header(HttpHeaders.CONTENT_TYPE, metaData.getContentMetadata().getContentType());
     }
     private Response.ResponseBuilder addObjectHeaders(BlobMetadata metaData, Response.ResponseBuilder responseBuilder) {
         return addObjectHeaders(metaData, metaData.getSize(), metaData.getETag(), responseBuilder);
+    }
+
+    private class ManifestObjectInputStream extends InputStream {
+        private final Iterator<ManifestEntry> entries;
+        private final BlobStore blobStore;
+        private InputStream currentStream;
+        ManifestObjectInputStream(BlobStore blobStore, Iterable<ManifestEntry> entries) {
+            this.blobStore = requireNonNull(blobStore);
+            this.entries = requireNonNull(entries).iterator();
+        }
+
+        void openNextStream() throws IOException {
+            if (!entries.hasNext()) {
+                currentStream = null;
+                return;
+            }
+
+            ManifestEntry entry = entries.next();
+            Blob blob = blobStore.getBlob(entry.container, entry.object);
+            if (blob == null || entry.size_bytes != blob.getMetadata().getSize() ||
+                    !entry.etag.equals(blob.getMetadata().getETag())) {
+                logger.error("409 conflict: {}/{} {} {} != {} {}",
+                        entry.container, entry.object, entry.etag, entry.size_bytes,
+                        blob.getMetadata().getETag(), blob.getMetadata().getSize());
+                throw new ClientErrorException(Response.Status.CONFLICT);
+            }
+
+            currentStream = blob.getPayload().openStream();
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (currentStream == null) {
+                openNextStream();
+            }
+
+            do {
+                if (currentStream == null) {
+                    return -1;
+                }
+                try {
+                    int res = currentStream.read();
+                    if (res == -1) {
+                        openNextStream();
+                    } else {
+                        return res;
+                    }
+                } catch (EOFException e) {
+                    openNextStream();
+                }
+            } while (true);
+        }
+    }
+
+    private static class ManifestEntry {
+        @JsonProperty String etag;
+        @JsonProperty long size_bytes;
+        String container;
+        String object;
+
+        @JsonProperty void setPath(String path) {
+            Pair<String, String> param = validateCopyParam(path);
+            container = param.getFirst();
+            object = param.getSecond();
+        }
     }
 }
