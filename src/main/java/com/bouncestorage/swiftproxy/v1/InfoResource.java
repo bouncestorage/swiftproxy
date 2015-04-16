@@ -14,12 +14,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Path("/info")
 public final class InfoResource {
-    private static final ServerConfiguration SERVER_CONFIG = new ServerConfiguration();
+    static final ServerConfiguration CONFIG = new ServerConfiguration();
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public ServerConfiguration getInfo() {
-        return SERVER_CONFIG;
+        return CONFIG;
     }
 
     static final class ServerConfiguration {

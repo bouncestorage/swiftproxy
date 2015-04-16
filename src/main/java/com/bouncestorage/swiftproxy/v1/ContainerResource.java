@@ -48,7 +48,7 @@ import org.jclouds.blobstore.options.ListContainerOptions;
 public final class ContainerResource extends BlobStoreResource {
 
     private void createContainer(String authToken, String container) {
-        if (container.length() > 256) {
+        if (container.length() > InfoResource.CONFIG.swift.max_container_name_length) {
             throw new BadRequestException("container name too long");
         }
 
@@ -197,7 +197,7 @@ public final class ContainerResource extends BlobStoreResource {
                 //.filter(meta -> (prefix == null || meta.getName().startsWith(prefix)))
                 //.filter(meta -> delimFilter(meta.getName(), delim_filter))
                 .filter(meta -> endMarker == null || meta.getName().compareTo(endMarker) < 0)
-                .limit(limit == null ? Integer.MAX_VALUE : limit)
+                .limit(limit == null ? InfoResource.CONFIG.swift.container_listing_limit : limit)
                 .map(meta -> new ObjectEntry(metaGetName(meta), meta.getETag(),
                         meta.getSize() == null ? 0 : meta.getSize(),
                         contentType(meta), meta.getLastModified()))

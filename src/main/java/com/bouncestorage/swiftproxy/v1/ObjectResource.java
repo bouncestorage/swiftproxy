@@ -87,7 +87,6 @@ import org.jclouds.openstack.swift.v1.CopyObjectException;
 @Path("/v1/{account}/{container}/{object:.*}")
 public final class ObjectResource extends BlobStoreResource {
     private static final String META_HEADER_PREFIX = "x-object-meta-";
-    private static final int MAX_OBJECT_NAME_LENGTH = 1024;
     private static final String DYNAMIC_OBJECT_MANIFEST = "x-object-manifest";
     private static final String STATIC_OBJECT_MANIFEST = "x-static-large-object";
     private static final Set<String> RESERVED_METADATA = ImmutableSet.of(
@@ -352,7 +351,7 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
                                @Context Request request) {
-        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+        if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
             return badRequest();
         }
 
@@ -367,7 +366,7 @@ public final class ObjectResource extends BlobStoreResource {
         if (destAccount == null) {
             destAccount = account;
         }
-        if (destObject.length() > MAX_OBJECT_NAME_LENGTH) {
+        if (destObject.length() > InfoResource.CONFIG.swift.max_object_name_length) {
             return badRequest();
         }
 
@@ -446,7 +445,7 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                                @Context Request request) {
-        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+        if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
             return badRequest();
         }
 
@@ -552,7 +551,7 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch,
                               @Context Request request) {
         //objectName = normalizePath(objectName);
-        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+        if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
             return badRequest();
         }
         if (transferEncoding != null && !"chunked".equals(transferEncoding)) {
@@ -647,7 +646,7 @@ public final class ObjectResource extends BlobStoreResource {
                                @NotNull @PathParam("account") String account,
                                @HeaderParam("X-Auth-Token") String authToken,
                                @QueryParam("multipart-manifest") String multiPartManifest) {
-        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+        if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
             return badRequest();
         }
 
@@ -683,7 +682,7 @@ public final class ObjectResource extends BlobStoreResource {
                                  @NotNull @Encoded @PathParam("object") String objectName,
                                  @QueryParam("multipart-manifest") String multipartManifest,
                                  @HeaderParam("X-Auth-Token") String authToken) throws IOException {
-        if (objectName.length() > MAX_OBJECT_NAME_LENGTH) {
+        if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
             return badRequest();
         }
 
