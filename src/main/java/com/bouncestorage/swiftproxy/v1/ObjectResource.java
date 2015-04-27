@@ -149,7 +149,7 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("If-Modified-Since") Date ifModifiedSince,
                               @HeaderParam("If-Unmodified-Since") Date ifUnmodifiedSince) {
         GetOptions options = parseRange(new GetOptions(), range);
-        BlobStore blobStore = getBlobStore();
+        BlobStore blobStore = getBlobStore(getIdentity(authToken), container, object);
 
         if (ifMatch != null) {
             options.ifETagMatches(ifMatch);
@@ -326,10 +326,10 @@ public final class ObjectResource extends BlobStoreResource {
 
     }
 
-    private String serverCopyBlob(String container, String objectName, String destContainer,
+    private String serverCopyBlob(BlobStore blobStore, String container, String objectName, String destContainer,
                                   String destObject, CopyOptions options) {
         try {
-            return getBlobStore().copyBlob(container, objectName, destContainer, destObject, options);
+            return blobStore.copyBlob(container, objectName, destContainer, destObject, options);
         } catch (CopyObjectException e) {
             if (e.getCause() instanceof HttpResponseException) {
                 throw (HttpResponseException) e.getCause();
@@ -375,7 +375,7 @@ public final class ObjectResource extends BlobStoreResource {
 
         Map<String, String> additionalUserMeta = getUserMetadata(request);
 
-        BlobStore blobStore = getBlobStore();
+        BlobStore blobStore = getBlobStore(getIdentity(authToken), container, objectName);
         if (!blobStore.containerExists(container) || !blobStore.containerExists(destContainer)) {
             return notFound();
         }
@@ -421,7 +421,7 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         if (etag == null) {
-            etag = serverCopyBlob(container, objectName, destContainer, destObject, options);
+            etag = serverCopyBlob(blobStore, container, objectName, destContainer, destObject, options);
         }
         return Response.status(Response.Status.CREATED)
                 .header(HttpHeaders.ETAG, etag)
@@ -450,10 +450,11 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        if (!getBlobStore().containerExists(container)) {
+        BlobStore  blobStore = getBlobStore(getIdentity(authToken), container, objectName);
+        if (!blobStore.containerExists(container)) {
             return notFound();
         }
-        Blob blob = getBlobStore().getBlob(container, objectName);
+        Blob blob = blobStore.getBlob(container, objectName);
         if (blob == null) {
             return notFound();
         }
@@ -465,7 +466,7 @@ public final class ObjectResource extends BlobStoreResource {
         blob.getMetadata().setUserMetadata(newMetadata);
         copyContentHeaders(blob, contentDisposition, contentEncoding, contentType);
 
-        getBlobStore().putBlob(container, blob);
+        blobStore.putBlob(container, blob);
         return Response.accepted()
                 .header(HttpHeaders.CONTENT_LENGTH, 0)
                 .header(HttpHeaders.CONTENT_TYPE, contentType)
@@ -507,8 +508,7 @@ public final class ObjectResource extends BlobStoreResource {
         return new Pair<>(segmentsTotalLength, '"' + hash.hash().toString() + '"');
     }
 
-    private void validateManifest(ManifestEntry[] res) {
-        BlobStore blobStore = getBlobStore();
+    private void validateManifest(ManifestEntry[] res, BlobStore blobStore) {
         Arrays.stream(res).parallel()
                 .forEach(s -> {
                     Response r = getObject(blobStore, s.container, s.object, GetOptions.NONE, false);
@@ -580,11 +580,12 @@ public final class ObjectResource extends BlobStoreResource {
         Map<String, String> metadata = getUserMetadata(request);
         InputStream copiedStream = null;
 
+        BlobStore blobStore = getBlobStore(getIdentity(authToken), container, objectName);
         if ("put".equals(multiPartManifest)) {
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             try (TeeInputStream tee = new TeeInputStream(request.getInputStream(), buffer, true)) {
                 ManifestEntry[] manifest = readSLOManifest(tee);
-                validateManifest(manifest);
+                validateManifest(manifest, blobStore);
                 Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(Arrays.asList(manifest));
                 metadata.put(STATIC_OBJECT_MANIFEST, sizeAndEtag.getFirst() + " " + sizeAndEtag.getSecond());
                 copiedStream = new ByteArrayInputStream(buffer.toByteArray());
@@ -595,7 +596,7 @@ public final class ObjectResource extends BlobStoreResource {
             metadata.put(DYNAMIC_OBJECT_MANIFEST, objectManifest);
         }
 
-        if (!getBlobStore().containerExists(container)) {
+        if (!blobStore.containerExists(container)) {
             return notFound();
         }
 
@@ -612,7 +613,7 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         try (InputStream is = copiedStream != null ? copiedStream : request.getInputStream()) {
-            BlobBuilder.PayloadBlobBuilder builder = getBlobStore().blobBuilder(objectName)
+            BlobBuilder.PayloadBlobBuilder builder = blobStore.blobBuilder(objectName)
                     .userMetadata(metadata)
                     .payload(is);
             if (contentType != null) {
@@ -625,8 +626,8 @@ public final class ObjectResource extends BlobStoreResource {
                 builder.contentMD5(contentMD5);
             }
             try {
-                String remoteETag = getBlobStore().putBlob(container, builder.build());
-                BlobMetadata meta = getBlobStore().blobMetadata(container, objectName);
+                String remoteETag = blobStore.putBlob(container, builder.build());
+                BlobMetadata meta = blobStore.blobMetadata(container, objectName);
                 return Response.status(Response.Status.CREATED).header(HttpHeaders.ETAG, remoteETag)
                         .header(HttpHeaders.LAST_MODIFIED, meta.getLastModified())
                         .header(HttpHeaders.CONTENT_LENGTH, 0)
@@ -650,7 +651,8 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        BlobMetadata meta = getBlobStore().blobMetadata(container, objectName);
+        BlobStore blobStore = getBlobStore(getIdentity(authToken), container, objectName);
+        BlobMetadata meta = blobStore.blobMetadata(container, objectName);
         if (meta == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
@@ -685,7 +687,7 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        BlobStore store = getBlobStore();
+        BlobStore store = getBlobStore(getIdentity(authToken), container, objectName);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

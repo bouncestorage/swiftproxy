@@ -30,15 +30,19 @@ public final class SwiftProxy {
     private URI endpoint;
     private final BounceResourceConfig rc;
 
-    public SwiftProxy(BlobStore blobStore, URI endpoint) {
+    public SwiftProxy(BlobStore blobStore, BlobStoreLocator locator, URI endpoint) {
         this.endpoint = checkNotNull(endpoint);
 
-        rc = new BounceResourceConfig(blobStore);
+        rc = new BounceResourceConfig(blobStore, locator);
         if (logger.isDebugEnabled()) {
             rc.register(new LoggingFilter(java.util.logging.Logger.getGlobal(), true));
         }
         server = GrizzlyHttpServerFactory.createHttpServer(endpoint, rc, false);
         RuntimeDelegate.setInstance(new RuntimeDelegateImpl(RuntimeDelegate.getInstance()));
+    }
+
+    public void setBlobStoreLocator(BlobStoreLocator locator) {
+        rc.setBlobStoreLocator(locator);
     }
 
     public URI getEndpoint() {
@@ -62,6 +66,7 @@ public final class SwiftProxy {
 
     public static final class Builder {
         private BlobStore blobStore;
+        private BlobStoreLocator locator;
         private URI endpoint;
 
         Builder() {
@@ -72,12 +77,17 @@ public final class SwiftProxy {
         }
 
         public Builder blobStore(BlobStore newBlobStore) {
-            this.blobStore = checkNotNull(newBlobStore);
+            this.blobStore = newBlobStore;
             return this;
         }
 
         public Builder endpoint(URI newEndpoint) {
             this.endpoint = checkNotNull(newEndpoint);
+            return this;
+        }
+
+        public Builder locator(BlobStoreLocator newLocator) {
+            this.locator = newLocator;
             return this;
         }
 
@@ -100,7 +110,7 @@ public final class SwiftProxy {
         }
 
         public SwiftProxy build() {
-            return new SwiftProxy(blobStore, endpoint);
+            return new SwiftProxy(blobStore, locator, endpoint);
         }
     }
 }

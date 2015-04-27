@@ -51,7 +51,7 @@ public final class AccountResource extends BlobStoreResource {
         delimiter.ifPresent(x -> logger.info("delimiter not supported yet"));
         accept.ifPresent(x -> logger.info("Accept not supported yet"));
 
-        List<ContainerEntry> entries = getBlobStore().list()
+        List<ContainerEntry> entries = getBlobStore(getIdentity(authToken), null, null).list()
                 .stream()
                 .map(meta -> meta.getName())
                 .filter(name -> marker.map(m -> name.compareTo(m) > 0).orElse(true))

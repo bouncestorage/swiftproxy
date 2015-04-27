@@ -47,12 +47,12 @@ import org.jclouds.blobstore.options.ListContainerOptions;
 @Path("/v1/{account}/{container}")
 public final class ContainerResource extends BlobStoreResource {
 
-    private void createContainer(String container) {
+    private void createContainer(String authToken, String container) {
         if (container.length() > 256) {
             throw new BadRequestException("container name too long");
         }
 
-        getBlobStore().createContainerInLocation(null, container);
+        getBlobStore(getIdentity(authToken), container, null).createContainerInLocation(null, container);
     }
 
     @POST
@@ -66,7 +66,7 @@ public final class ContainerResource extends BlobStoreResource {
                                   @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                   @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                                   @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch) {
-        createContainer(container);
+        createContainer(authToken, container);
         return Response.status(Response.Status.NO_CONTENT).build();
     }
 
@@ -82,12 +82,12 @@ public final class ContainerResource extends BlobStoreResource {
                                   @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                                   @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch) {
         Response.Status status;
-        BlobStore store = getBlobStore();
+        BlobStore store = getBlobStore(getIdentity(authToken), container, null);
 
         if (store.containerExists(container)) {
             status = Response.Status.ACCEPTED;
         } else {
-            createContainer(container);
+            createContainer(authToken, container);
             status = Response.Status.CREATED;
         }
 
@@ -97,7 +97,7 @@ public final class ContainerResource extends BlobStoreResource {
     @DELETE
     public Response deleteContainer(@NotNull @PathParam("container") String container,
                                     @HeaderParam("X-Auth-Token") String authToken) {
-        BlobStore store = getBlobStore();
+        BlobStore store = getBlobStore(getIdentity(authToken), container, null);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
@@ -115,7 +115,7 @@ public final class ContainerResource extends BlobStoreResource {
     public Response headContainer(@NotNull @PathParam("container") String container,
                                   @HeaderParam("X-Auth-Token") String authToken,
                                   @HeaderParam("X-Newest") @DefaultValue("false") boolean newest) {
-        BlobStore store = getBlobStore();
+        BlobStore store = getBlobStore(getIdentity(authToken), container, null);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
@@ -159,7 +159,7 @@ public final class ContainerResource extends BlobStoreResource {
                                   @QueryParam("path") String path,
                                   @HeaderParam("X-Newest") @DefaultValue("false") boolean newest,
                                   @HeaderParam("Accept") String accept) {
-        BlobStore store = getBlobStore();
+        BlobStore store = getBlobStore(getIdentity(authToken), container, null);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

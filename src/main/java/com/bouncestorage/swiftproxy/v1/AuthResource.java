@@ -11,6 +11,7 @@ import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
 
+import com.bouncestorage.swiftproxy.BlobStoreLocator;
 import com.bouncestorage.swiftproxy.BlobStoreResource;
 import com.bouncestorage.swiftproxy.BounceResourceConfig;
 
@@ -21,9 +22,10 @@ public final class AuthResource extends BlobStoreResource {
                          @NotNull @HeaderParam("X-Auth-Key") String key) {
         String endpoint = ((BounceResourceConfig) application).getEndPoint().toString();
         endpoint += "/v1/" + user;
+        String authToken = user + BlobStoreLocator.TOKEN_SEPARATOR + "foobar";
         return Response.ok()
                 .header("x-storage-url", endpoint)
-                .header("x-auth-token", "foobar")
+                .header("x-auth-token", authToken)
                 .build();
     }
 }
