@@ -64,6 +64,10 @@ public final class SwiftProxy {
         return server.getListeners().stream().findAny().map(n -> n.getPort()).orElse(0);
     }
 
+    public boolean isStarted() {
+        return server.isStarted();
+    }
+
     public static final class Builder {
         private BlobStore blobStore;
         private BlobStoreLocator locator;
