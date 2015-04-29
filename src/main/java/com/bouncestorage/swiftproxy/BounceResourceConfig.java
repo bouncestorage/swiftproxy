@@ -20,6 +20,7 @@ import org.jclouds.blobstore.BlobStore;
 public final class BounceResourceConfig extends ResourceConfig {
     private static final Map<String, MediaType> swiftFormatToMediaType = ImmutableMap.of(
             "json", MediaType.APPLICATION_JSON_TYPE,
+            "application/json", MediaType.APPLICATION_JSON_TYPE,
             "xml", MediaType.APPLICATION_XML_TYPE,
             "plain", MediaType.TEXT_PLAIN_TYPE
     );

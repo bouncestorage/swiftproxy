@@ -75,6 +75,9 @@ public abstract class BlobStoreResource {
                 debugWrite(root, format);
                 return Response.ok(root, format);
             }
+            if (format == MediaType.APPLICATION_JSON_TYPE) {
+                return Response.ok(entries, format);
+            }
         }
 
         debugWrite(value, format);

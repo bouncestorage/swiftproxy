@@ -64,7 +64,8 @@ public final class AccountResourceTest {
     List<AccountResource.ContainerEntry> listContainers() {
         return target.path(TestUtils.ACCOUNT_PATH)
                 .queryParam("format", "json")
-                .request().get(new GenericType<List<AccountResource.ContainerEntry>>() {
+                .request()
+                .get(new GenericType<List<AccountResource.ContainerEntry>>() {
                 });
     }
 }

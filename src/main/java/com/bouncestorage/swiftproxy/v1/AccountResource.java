@@ -42,14 +42,13 @@ public final class AccountResource extends BlobStoreResource {
                                @QueryParam("limit") Optional<Integer> limit,
                                @QueryParam("marker") Optional<String> marker,
                                @QueryParam("end_marker") Optional<String> endMarker,
-                               @QueryParam("format") @DefaultValue("plain") String format,
+                               @QueryParam("format") Optional<String> format,
                                @QueryParam("prefix") Optional<String> prefix,
                                @QueryParam("delimiter") Optional<String> delimiter,
                                @HeaderParam("X-Auth-Token") String authToken,
                                @HeaderParam("X-Newest") @DefaultValue("false") boolean newest,
                                @HeaderParam("Accept") Optional<String> accept) {
         delimiter.ifPresent(x -> logger.info("delimiter not supported yet"));
-        accept.ifPresent(x -> logger.info("Accept not supported yet"));
 
         List<ContainerEntry> entries = getBlobStore().list()
                 .stream()
@@ -61,7 +60,10 @@ public final class AccountResource extends BlobStoreResource {
                 .map(name -> new ContainerEntry(name))
                 .collect(Collectors.toList());
 
-        MediaType formatType = BounceResourceConfig.getMediaType(format);
+        MediaType formatType = BounceResourceConfig.getMediaType(format.orElse(accept.get()));
+        if (formatType == null) {
+            formatType = MediaType.TEXT_PLAIN_TYPE;
+        }
 
         Account root = new Account();
         root.name = account;
