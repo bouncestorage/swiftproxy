@@ -30,8 +30,8 @@ public abstract class BlobStoreResource {
     @Context
     private MessageBodyWorkers workers;
 
-    protected final BlobStore getBlobStore() {
-        return ((BounceResourceConfig) application).getBlobStore();
+    protected final BlobStore getBlobStore(String identity, String containerName, String blobName) {
+        return ((BounceResourceConfig) application).getBlobStore(identity, containerName, blobName);
     }
 
     protected static Response notFound() {
@@ -79,5 +79,16 @@ public abstract class BlobStoreResource {
 
         debugWrite(value, format);
         return Response.ok(value, format);
+    }
+
+    protected static final String getIdentity(String authToken) {
+        if (authToken == null) {
+            return null;
+        }
+        int separatorIndex = authToken.indexOf(BlobStoreLocator.TOKEN_SEPARATOR);
+        if (separatorIndex < 0) {
+            return null;
+        }
+        return authToken.substring(0, separatorIndex);
     }
 }

@@ -5,8 +5,6 @@
 
 package com.bouncestorage.swiftproxy;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.net.URI;
 import java.util.Map;
 
@@ -26,14 +24,28 @@ public final class BounceResourceConfig extends ResourceConfig {
 
     private final BlobStore blobStore;
     private URI endPoint;
+    private BlobStoreLocator locator;
 
-    BounceResourceConfig(BlobStore blobStore) {
-        this.blobStore = checkNotNull(blobStore);
+    BounceResourceConfig(BlobStore blobStore, BlobStoreLocator locator) {
+        if (blobStore == null && locator == null) {
+            throw new NullPointerException("One of blobStore or locator must be set");
+        }
+        this.blobStore = blobStore;
+        this.locator = locator;
         packages(getClass().getPackage().getName());
     }
 
-    public BlobStore getBlobStore() {
-        return blobStore;
+    public BlobStore getBlobStore(String identity, String containerName, String blobName) {
+        if (locator != null) {
+            Map.Entry<String, BlobStore> entry = locator.locateBlobStore(identity, containerName, blobName);
+            if (entry != null) {
+                return entry.getValue();
+            }
+        }
+        if (blobStore != null) {
+            return blobStore;
+        }
+        throw new NullPointerException("Blob store not found for: " + identity + " " + containerName + " " + blobName);
     }
 
     public static MediaType getMediaType(String format) {
@@ -46,5 +58,13 @@ public final class BounceResourceConfig extends ResourceConfig {
 
     public URI getEndPoint() {
         return endPoint;
+    }
+
+    public boolean isLocatorSet() {
+        return locator != null;
+    }
+
+    public void setBlobStoreLocator(BlobStoreLocator newLocator) {
+        locator = newLocator;
     }
 }
