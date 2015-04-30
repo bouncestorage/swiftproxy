@@ -5,7 +5,7 @@
 
 package com.bouncestorage.swiftproxy.v1;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import java.util.List;
 import java.util.Objects;
@@ -106,7 +106,7 @@ public final class AccountResource extends BlobStoreResource {
 
         @JsonCreator
         public ContainerEntry(@JsonProperty("name") String name) {
-            this.name = checkNotNull(name);
+            this.name = requireNonNull(name);
         }
 
         @Override

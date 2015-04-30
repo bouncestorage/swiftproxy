@@ -5,7 +5,8 @@
 
 package com.bouncestorage.swiftproxy;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
+
 import static com.google.common.base.Throwables.propagate;
 
 import java.io.IOException;
@@ -31,7 +32,7 @@ public final class SwiftProxy {
     private final BounceResourceConfig rc;
 
     public SwiftProxy(BlobStore blobStore, BlobStoreLocator locator, URI endpoint) {
-        this.endpoint = checkNotNull(endpoint);
+        this.endpoint = requireNonNull(endpoint);
 
         rc = new BounceResourceConfig(blobStore, locator);
         if (logger.isDebugEnabled()) {
@@ -86,7 +87,7 @@ public final class SwiftProxy {
         }
 
         public Builder endpoint(URI newEndpoint) {
-            this.endpoint = checkNotNull(newEndpoint);
+            this.endpoint = requireNonNull(newEndpoint);
             return this;
         }
 

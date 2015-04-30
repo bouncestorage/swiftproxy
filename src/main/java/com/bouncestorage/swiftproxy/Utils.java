@@ -5,6 +5,8 @@
 
 package com.bouncestorage.swiftproxy;
 
+import static java.util.Objects.requireNonNull;
+
 import static com.google.common.base.Throwables.propagate;
 
 import java.io.File;
@@ -15,7 +17,6 @@ import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Module;
 
@@ -105,7 +106,7 @@ public final class Utils {
 
         CrawlBlobStoreIterator(BlobStore blobStore, String containerName,
                 ListContainerOptions options) {
-            this.options = Preconditions.checkNotNull(options);
+            this.options = requireNonNull(options);
             nextPage = () -> blobStore.list(containerName, options);
             advance();
         }
