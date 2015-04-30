@@ -21,6 +21,10 @@
         </dependencies>
     </dependencyManagement>
 
+    <prerequisites>
+      <maven>3.0.5</maven>
+    </prerequisites>
+
     <repositories>
       <repository>
         <id>apache-snapshots</id>
