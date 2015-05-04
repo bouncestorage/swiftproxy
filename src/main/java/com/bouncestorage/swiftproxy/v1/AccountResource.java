@@ -60,7 +60,7 @@ public final class AccountResource extends BlobStoreResource {
                 .map(name -> new ContainerEntry(name))
                 .collect(Collectors.toList());
 
-        MediaType formatType = BounceResourceConfig.getMediaType(format.orElse(accept.get()));
+        MediaType formatType = BounceResourceConfig.getMediaType(format.orElse(accept.orElse(null)));
         if (formatType == null) {
             formatType = MediaType.TEXT_PLAIN_TYPE;
         }
