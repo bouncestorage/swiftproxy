@@ -5,6 +5,8 @@
 
 package com.bouncestorage.swiftproxy.v1;
 
+import java.util.Optional;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
@@ -13,9 +15,8 @@ import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.BlobStoreLocator;
 import com.bouncestorage.swiftproxy.BlobStoreResource;
-import org.glassfish.grizzly.http.server.Request;
 
-import java.util.Optional;
+import org.glassfish.grizzly.http.server.Request;
 
 @Path("/auth/v1.0")
 public final class AuthResource extends BlobStoreResource {
