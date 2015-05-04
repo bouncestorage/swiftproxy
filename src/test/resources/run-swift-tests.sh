@@ -15,6 +15,7 @@ trap "kill $PROXY_PID" EXIT
 
 pushd swift-tests
 
+mkdir -p virtualenv
 if [ ! -e ./virtualenv/bin/pip ]; then
     virtualenv --no-site-packages --distribute virtualenv
 fi
