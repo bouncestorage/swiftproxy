@@ -8,6 +8,7 @@ package com.bouncestorage.swiftproxy.v1;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -49,9 +50,9 @@ public final class AccountResourceTest {
 
     @Test
     public void testOneContainer() throws Exception {
-        TestUtils.createContainer(target, CONTAINER);
+        String authToken = TestUtils.createContainer(target, CONTAINER);
 
-        List<AccountResource.ContainerEntry> entries = listContainers();
+        List<AccountResource.ContainerEntry> entries = listContainers(Optional.of(authToken));
         assertThat(entries).containsOnly(new AccountResource.ContainerEntry(CONTAINER));
     }
 
@@ -61,10 +62,15 @@ public final class AccountResourceTest {
         assertThat(response.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    List<AccountResource.ContainerEntry> listContainers() {
+    List<AccountResource.ContainerEntry> listContainers() throws Exception {
+        return listContainers(Optional.empty());
+    }
+
+    List<AccountResource.ContainerEntry> listContainers(Optional<String> authToken) throws Exception {
         return target.path(TestUtils.ACCOUNT_PATH)
                 .queryParam("format", "json")
                 .request()
+                .header("x-auth-token", authToken.orElseGet(() -> TestUtils.getAuthToken(target)))
                 .get(new GenericType<List<AccountResource.ContainerEntry>>() {
                 });
     }

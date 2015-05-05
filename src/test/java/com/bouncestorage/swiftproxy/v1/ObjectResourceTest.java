@@ -29,6 +29,7 @@ public final class ObjectResourceTest {
 
     private SwiftProxy proxy;
     private WebTarget target;
+    private String authToken;
 
     public ObjectResourceTest() {
         String[] parts = {TestUtils.ACCOUNT_PATH, CONTAINER, BLOB_NAME};
@@ -41,7 +42,7 @@ public final class ObjectResourceTest {
         Client c = ClientBuilder.newClient();
         target = c.target(proxy.getEndpoint());
 
-        TestUtils.createContainer(target, CONTAINER);
+        authToken = TestUtils.createContainer(target, CONTAINER);
     }
 
     @After
@@ -56,7 +57,7 @@ public final class ObjectResourceTest {
         String data = "foo";
         putObject(target.path(path), data.getBytes());
 
-        Response resp = target.path(path).request().get();
+        Response resp = target.path(path).request().header("x-auth-token", authToken).get();
         assertThat(resp.getStatus()).isEqualTo(Response.Status.OK.getStatusCode());
         assertThat(resp.readEntity(String.class)).isEqualTo(data);
         assertThat(resp.getLength()).isEqualTo(data.length());
@@ -65,7 +66,7 @@ public final class ObjectResourceTest {
 
     @Test
     public void testMissingObject() throws Exception {
-        Response resp = target.path(path).request().get();
+        Response resp = target.path(path).request().header("x-auth-token", authToken).get();
         assertThat(resp.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
     }
 
@@ -74,7 +75,7 @@ public final class ObjectResourceTest {
         String data = "foo";
         putObject(target.path(path), data.getBytes());
 
-        Response resp = target.path(path).request().head();
+        Response resp = target.path(path).request().header("x-auth-token", authToken).head();
         // TODO: this should be fixed once the Jersey issue is resolved and we return NO_CONTENT
         assertThat(resp.getStatus()).isEqualTo(Response.Status.OK.getStatusCode());
         assertThat(resp.getLength()).isEqualTo(data.length());
@@ -82,7 +83,9 @@ public final class ObjectResourceTest {
     }
 
     Response putObject(WebTarget putTarget, byte[] data) throws Exception {
-        Response resp = target.path(path).request().put(Entity.entity(data, MediaType.APPLICATION_OCTET_STREAM));
+        Response resp = target.path(path).request()
+                .header("x-auth-token", authToken)
+                .put(Entity.entity(data, MediaType.APPLICATION_OCTET_STREAM));
         assertThat(resp.getStatus()).isEqualTo(Response.Status.CREATED.getStatusCode());
         assertThat(resp.getMediaType().toString()).isEqualTo(MediaType.APPLICATION_OCTET_STREAM);
         return resp;

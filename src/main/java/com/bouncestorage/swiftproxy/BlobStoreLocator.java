@@ -10,7 +10,5 @@ import java.util.Map;
 import org.jclouds.blobstore.BlobStore;
 
 public interface BlobStoreLocator {
-    String TOKEN_SEPARATOR = "TOKEN";
-
     Map.Entry<String, BlobStore> locateBlobStore(String identity, String container, String blob);
 }

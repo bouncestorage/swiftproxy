@@ -138,6 +138,8 @@
     </module>
     <module name="WhitespaceAfter"/>
     <module name="WhitespaceAround"/>
+    <!-- so we can use SuppressionCommentFilter -->
+    <module name="FileContentsHolder"/>
   </module>
   <module name="Header">
     <property name="fileExtensions" value="java"/>
@@ -147,4 +149,5 @@
     <property name="format" value="\s+$"/>
     <property name="message" value="Line has trailing spaces."/>
   </module>
+  <module name="SuppressionCommentFilter"/>
 </module>

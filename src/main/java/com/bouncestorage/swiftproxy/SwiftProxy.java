@@ -19,8 +19,6 @@ import javax.ws.rs.ext.RuntimeDelegate;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.filter.LoggingFilter;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.jclouds.Constants;
-import org.jclouds.blobstore.BlobStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,10 +29,10 @@ public final class SwiftProxy {
     private URI endpoint;
     private final BounceResourceConfig rc;
 
-    public SwiftProxy(BlobStore blobStore, BlobStoreLocator locator, URI endpoint) {
+    public SwiftProxy(Properties properties, BlobStoreLocator locator, URI endpoint) {
         this.endpoint = requireNonNull(endpoint);
 
-        rc = new BounceResourceConfig(blobStore, locator);
+        rc = new BounceResourceConfig(properties, locator);
         if (logger.isDebugEnabled()) {
             rc.register(new LoggingFilter(java.util.logging.Logger.getGlobal(), true));
         }
@@ -70,20 +68,15 @@ public final class SwiftProxy {
     }
 
     public static final class Builder {
-        private BlobStore blobStore;
         private BlobStoreLocator locator;
         private URI endpoint;
+        private Properties properties;
 
         Builder() {
         }
 
         public static Builder builder() {
             return new Builder();
-        }
-
-        public Builder blobStore(BlobStore newBlobStore) {
-            this.blobStore = newBlobStore;
-            return this;
         }
 
         public Builder endpoint(URI newEndpoint) {
@@ -96,11 +89,8 @@ public final class SwiftProxy {
             return this;
         }
 
-        public Builder overrides(Properties properties) {
-            String provider = properties.getProperty(Constants.PROPERTY_PROVIDER);
-            if (provider != null) {
-                blobStore(Utils.storeFromProperties(properties));
-            }
+        public Builder overrides(Properties prop) {
+            this.properties = requireNonNull(prop);
 
             String proxyEndpoint = properties.getProperty(SwiftProxy.PROPERTY_ENDPOINT);
             if (proxyEndpoint != null) {
@@ -115,7 +105,7 @@ public final class SwiftProxy {
         }
 
         public SwiftProxy build() {
-            return new SwiftProxy(blobStore, locator, endpoint);
+            return new SwiftProxy(properties, locator, endpoint);
         }
     }
 }

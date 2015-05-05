@@ -73,7 +73,7 @@ public final class Main {
         BlobStoreContext context = builder.build(BlobStoreContext.class);
 
         SwiftProxy proxy = SwiftProxy.Builder.builder()
-                .blobStore(context.getBlobStore())
+                .overrides(properties)
                 .endpoint(new URI(proxyEndpoint))
                 .build();
         proxy.start();

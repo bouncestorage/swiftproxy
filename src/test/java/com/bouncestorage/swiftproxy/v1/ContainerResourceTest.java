@@ -7,6 +7,8 @@ package com.bouncestorage.swiftproxy.v1;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Optional;
+
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
@@ -43,25 +45,26 @@ public final class ContainerResourceTest {
         Response resp = TestUtils.deleteContainer(target, CONTAINER);
         assertThat(resp.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
 
-        TestUtils.createContainer(target, CONTAINER);
+        String authToken = TestUtils.createContainer(target, CONTAINER);
 
-        resp = TestUtils.deleteContainer(target, CONTAINER);
+        resp = TestUtils.deleteContainer(target, CONTAINER, Optional.of(authToken));
         assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
     @Test
     public void testHeadContainer() throws Exception {
-        Response resp = headContainer(CONTAINER);
+        Response resp = headContainer(CONTAINER, Optional.empty());
         assertThat(resp.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
 
-        TestUtils.createContainer(target, CONTAINER);
+        String authToken = TestUtils.createContainer(target, CONTAINER);
 
-        resp = headContainer(CONTAINER);
+        resp = headContainer(CONTAINER, Optional.of(authToken));
         assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
-    Response headContainer(String container) {
-        return target.path(TestUtils.ACCOUNT_PATH + "/" + container)
-                .request().head();
+    Response headContainer(String container, Optional<String> authToken) {
+        return target.path(TestUtils.ACCOUNT_PATH + "/" + container).request()
+                .header("x-auth-token", authToken.orElseGet(() -> TestUtils.getAuthToken(target)))
+                .head();
     }
 }

@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
@@ -68,13 +69,18 @@ public final class BlobStoreLocatorTest {
             return null;
         });
 
+        String path = "/auth/v1.0";
+        Response resp = target.path(path).request().header("X-auth-user", "foo").header("X-auth-key", "foo")
+                .get();
+        String storageURL = resp.getHeaderString("x-storage-url");
+        String authToken = resp.getHeaderString("x-auth-token");
+        assertThat(storageURL).isNotNull();
+        assertThat(authToken).isNotNull();
         String container = "container";
-        String path = Joiner.on("/").join(TestUtils.ACCOUNT_PATH, container);
-        target.path(path).request().header("X-auth-token", "foo" + BlobStoreLocator.TOKEN_SEPARATOR + "token")
-                .post(null);
-        target.path(path).request().header("X-auth-token", "bar" + BlobStoreLocator.TOKEN_SEPARATOR + "token")
+        path = Joiner.on("/").join(TestUtils.ACCOUNT_PATH, container);
+        target.path(path).request().header("X-auth-token", authToken)
                 .post(null);
         assertThat(foo.containerExists(container)).isTrue();
-        assertThat(bar.containerExists(container)).isTrue();
+        assertThat(bar.containerExists(container)).isFalse();
     }
 }

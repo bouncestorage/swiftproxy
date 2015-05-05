@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 
+import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -19,19 +20,37 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.MessageBodyWriter;
 
 import org.glassfish.jersey.message.MessageBodyWorkers;
+
 import org.jclouds.blobstore.BlobStore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class BlobStoreResource {
+    private static final String UNAUTHORIZED_BODY =
+            "<html><h1>Unauthorized</h1><p>This server could not verify that you are authorized " +
+                    "to access the document you requested.</p></html>";
+
     protected Logger logger = LoggerFactory.getLogger(getClass());
     @Context
     protected Application application;
     @Context
     private MessageBodyWorkers workers;
 
-    protected final BlobStore getBlobStore(String identity, String containerName, String blobName) {
-        return ((BounceResourceConfig) application).getBlobStore(identity, containerName, blobName);
+    protected final BlobStore getBlobStore(String authToken) {
+        if (authToken == null) {
+            throw new ClientErrorException(UNAUTHORIZED_BODY, Response.Status.UNAUTHORIZED);
+        }
+        BlobStore blobStore = ((BounceResourceConfig) application).getBlobStore(authToken);
+        if (blobStore == null) {
+            throw new ClientErrorException(UNAUTHORIZED_BODY, Response.Status.UNAUTHORIZED);
+        }
+
+        return blobStore;
+    }
+
+    protected static Response notAuthorized() {
+        return Response.status(Response.Status.UNAUTHORIZED).entity(UNAUTHORIZED_BODY).build();
     }
 
     protected static Response notFound() {
@@ -82,16 +101,5 @@ public abstract class BlobStoreResource {
 
         debugWrite(value, format);
         return Response.ok(value, format);
-    }
-
-    protected static final String getIdentity(String authToken) {
-        if (authToken == null) {
-            return null;
-        }
-        int separatorIndex = authToken.indexOf(BlobStoreLocator.TOKEN_SEPARATOR);
-        if (separatorIndex < 0) {
-            return null;
-        }
-        return authToken.substring(0, separatorIndex);
     }
 }

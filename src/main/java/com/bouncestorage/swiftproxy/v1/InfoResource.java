@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Path("/info")
 public final class InfoResource {
-    static final ServerConfiguration CONFIG = new ServerConfiguration();
+    public static final ServerConfiguration CONFIG = new ServerConfiguration();
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -22,9 +22,11 @@ public final class InfoResource {
         return CONFIG;
     }
 
-    static final class ServerConfiguration {
-        @JsonProperty SwiftConfiguration swift = new SwiftConfiguration();
-        @JsonProperty SLOConfiguration slo = new SLOConfiguration();
+    //CHECKSTYLE:OFF
+    public static final class ServerConfiguration {
+        @JsonProperty public final SwiftConfiguration swift = new SwiftConfiguration();
+        @JsonProperty public final SLOConfiguration slo = new SLOConfiguration();
+        @JsonProperty public final TempAuthConfiguration tempauth = new TempAuthConfiguration();
 
         static final class SwiftConfiguration {
             @JsonProperty final int account_listing_limit = 10000;
@@ -43,7 +45,12 @@ public final class InfoResource {
         }
 
         static final class SLOConfiguration {
-            @JsonProperty int max_manifest_segments = 1000;
+            @JsonProperty final int max_manifest_segments = 1000;
+        }
+
+        public static final class TempAuthConfiguration {
+            @JsonProperty public final int token_life = 85400;
         }
     }
+    //CHECKSTYLE:ON
 }

@@ -147,8 +147,14 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("If-None-Match") String ifNoneMatch,
                               @HeaderParam("If-Modified-Since") Date ifModifiedSince,
                               @HeaderParam("If-Unmodified-Since") Date ifUnmodifiedSince) {
+        logger.debug("GET account={} container={} object={}", account, container, object);
+        BlobStore blobStore = getBlobStore(authToken);
+
+        if (!blobStore.containerExists(container)) {
+            return notFound();
+        }
+
         GetOptions options = parseRange(new GetOptions(), range);
-        BlobStore blobStore = getBlobStore(getIdentity(authToken), container, object);
 
         if (ifMatch != null) {
             options.ifETagMatches(ifMatch);
@@ -374,7 +380,7 @@ public final class ObjectResource extends BlobStoreResource {
 
         Map<String, String> additionalUserMeta = getUserMetadata(request);
 
-        BlobStore blobStore = getBlobStore(getIdentity(authToken), container, objectName);
+        BlobStore blobStore = getBlobStore(authToken);
         if (!blobStore.containerExists(container) || !blobStore.containerExists(destContainer)) {
             return notFound();
         }
@@ -449,7 +455,7 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        BlobStore  blobStore = getBlobStore(getIdentity(authToken), container, objectName);
+        BlobStore  blobStore = getBlobStore(authToken);
         if (!blobStore.containerExists(container)) {
             return notFound();
         }
@@ -579,7 +585,7 @@ public final class ObjectResource extends BlobStoreResource {
         Map<String, String> metadata = getUserMetadata(request);
         InputStream copiedStream = null;
 
-        BlobStore blobStore = getBlobStore(getIdentity(authToken), container, objectName);
+        BlobStore blobStore = getBlobStore(authToken);
         if ("put".equals(multiPartManifest)) {
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             try (TeeInputStream tee = new TeeInputStream(request.getInputStream(), buffer, true)) {
@@ -650,7 +656,7 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        BlobStore blobStore = getBlobStore(getIdentity(authToken), container, objectName);
+        BlobStore blobStore = getBlobStore(authToken);
         BlobMetadata meta = blobStore.blobMetadata(container, objectName);
         if (meta == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -686,7 +692,7 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        BlobStore store = getBlobStore(getIdentity(authToken), container, objectName);
+        BlobStore store = getBlobStore(authToken);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
