@@ -95,6 +95,15 @@ SwiftProxy does not support:
 * delete multiple objects
 * HTTPS frontend (Connecting to HTTPS object store is supported)
 
+Testing
+-------
+
+SwiftProxy itself has limited tests and those can be run via `mvn
+test`. We use Swift's functional tests to catch incompatibilities with
+the Swift API. SwiftProxy passes a large subset of Swift tests, and
+there's a helper script to run them against SwiftProxy
+(`src/test/resources/run-swift-tests.sh`).
+
 References
 ----------
 
