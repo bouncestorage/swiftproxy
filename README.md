@@ -64,7 +64,7 @@ SwiftProxy forwards authentication to the underlining object store,
 with the above configuration you can access Amazon S3 with:
 
 ```
-$ swift -A http://038341b0b64c:8080/auth/v1.0 -U AWS_ACCESSKEY -K AWS_CREDENTIAL list
+$ swift -A http://127.0.0.1:8080/auth/v1.0 -U AWS_ACCESSKEY -K AWS_CREDENTIAL list
 ```
 
 Another example using the local file system as the backing store:
