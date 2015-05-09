@@ -31,7 +31,10 @@ Supported object stores:
 * swift and swift-keystone (legacy)
 * transient (in-memory storage)
 
-Installation ------------ Users can
+Installation
+------------
+
+Users can
 [download releases](https://github.com/bouncestorage/swiftproxy/releases)
 from GitHub.  One can also build the project by running `mvn package`
 which produces a binary at
@@ -54,7 +57,7 @@ swiftproxy.endpoint=http://0.0.0.0:8080
 jclouds.provider=aws-s3
 jclouds.identity=AWS_ACCESSKEY
 jclouds.credential=AWS_CREDENTIAL
-jclouds.region = us-west-2
+jclouds.region=us-west-2
 ```
 
 SwiftProxy forwards authentication to the underlining object store,
@@ -71,7 +74,7 @@ swiftproxy.endpoint=http://127.0.0.1:8080
 jclouds.provider=filesystem
 jclouds.identity=test:tester
 jclouds.credential=testing
-jclouds.filesystem.basedir=/tmp
+jclouds.filesystem.basedir=/tmp/swiftproxy
 ```
 
 Users can also set other Java and
