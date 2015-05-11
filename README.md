@@ -60,7 +60,7 @@ jclouds.credential=AWS_CREDENTIAL
 jclouds.region=us-west-2
 ```
 
-SwiftProxy forwards authentication to the underlining object store,
+SwiftProxy forwards authentication to the underlying object store,
 with the above configuration you can access Amazon S3 with:
 
 ```
