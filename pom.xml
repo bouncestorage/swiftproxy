@@ -11,7 +11,7 @@
 
     <groupId>com.bouncestorage</groupId>
     <artifactId>swift-proxy</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>swift-proxy</name>
