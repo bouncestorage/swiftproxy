@@ -107,17 +107,14 @@ there's a helper script to run them against SwiftProxy
 References
 ----------
 
-Apache [jclouds](http://jclouds.apache.org/) provides object store
-support for SwiftProxy.
-
-[OpenStack Swift tests](https://github.com/openstack/swift/tree/master/test/functional)
-used to maintain and improve compatibility with the Swift API.
-
-[Docker Swift](https://github.com/ualbertalib/docker-swift) provides
+* Apache [jclouds](http://jclouds.apache.org/) provides object store
+support for SwiftProxy
+* [OpenStack Swift tests](https://github.com/openstack/swift/tree/master/test/functional)
+used to maintain and improve compatibility with the Swift API
+* [Docker Swift](https://github.com/ualbertalib/docker-swift) provides
 functionality similar to SwiftProxy when using the filesystem
-provider.
-
-[S3Proxy](https://github.com/andrewgaul/s3proxy) provided inspiration
+provider
+* [S3Proxy](https://github.com/andrewgaul/s3proxy) provided inspiration
 for this project
 
 
