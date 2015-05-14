@@ -1,4 +1,4 @@
-SwiftProxy
+SwiftProxy ![logo](src/main/resources/chameleon.png)
 =======
 SwiftProxy allows applications using the
 [Swift API](https://wiki.openstack.org/wiki/Swift)
