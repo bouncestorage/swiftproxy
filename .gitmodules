@@ -1,3 +1,3 @@
 [submodule "swift-tests"]
 	path = swift-tests
-	url = git@github.com:bouncestorage/swift.git
+	url = https://github.com/bouncestorage/swift.git
