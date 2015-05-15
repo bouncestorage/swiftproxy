@@ -159,7 +159,7 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("If-Modified-Since") Date ifModifiedSince,
                               @HeaderParam("If-Unmodified-Since") Date ifUnmodifiedSince) {
         logger.debug("GET account={} container={} object={}", account, container, object);
-        BlobStore blobStore = getBlobStore(authToken);
+        BlobStore blobStore = getBlobStore(authToken).get(container, object);
 
         if (!blobStore.containerExists(container)) {
             return notFound();
@@ -391,7 +391,7 @@ public final class ObjectResource extends BlobStoreResource {
 
         Map<String, String> additionalUserMeta = getUserMetadata(request);
 
-        BlobStore blobStore = getBlobStore(authToken);
+        BlobStore blobStore = getBlobStore(authToken).get(container, objectName);
         if (!blobStore.containerExists(container) || !blobStore.containerExists(destContainer)) {
             return notFound();
         }
@@ -466,7 +466,7 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        BlobStore  blobStore = getBlobStore(authToken);
+        BlobStore blobStore = getBlobStore(authToken).get(container, objectName);
         if (!blobStore.containerExists(container)) {
             return notFound();
         }
@@ -596,7 +596,7 @@ public final class ObjectResource extends BlobStoreResource {
         Map<String, String> metadata = getUserMetadata(request);
         InputStream copiedStream = null;
 
-        BlobStore blobStore = getBlobStore(authToken);
+        BlobStore blobStore = getBlobStore(authToken).get(container, objectName);
         if ("put".equals(multiPartManifest)) {
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             try (TeeInputStream tee = new TeeInputStream(request.getInputStream(), buffer, true)) {
@@ -667,7 +667,7 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        BlobStore blobStore = getBlobStore(authToken);
+        BlobStore blobStore = getBlobStore(authToken).get(container, objectName);
         BlobMetadata meta = blobStore.blobMetadata(container, objectName);
         if (meta == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -703,7 +703,7 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        BlobStore store = getBlobStore(authToken);
+        BlobStore store = getBlobStore(authToken).get(container, objectName);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

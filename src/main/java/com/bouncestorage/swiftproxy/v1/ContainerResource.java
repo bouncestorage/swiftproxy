@@ -63,7 +63,7 @@ public final class ContainerResource extends BlobStoreResource {
             throw new BadRequestException("container name too long");
         }
 
-        getBlobStore(authToken).createContainerInLocation(null, container);
+        getBlobStore(authToken).get(container).createContainerInLocation(null, container);
     }
 
     @POST
@@ -93,7 +93,7 @@ public final class ContainerResource extends BlobStoreResource {
                                   @HeaderParam("X-Detect-Content-Type") boolean detectContentType,
                                   @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch) {
         Response.Status status;
-        BlobStore store = getBlobStore(authToken);
+        BlobStore store = getBlobStore(authToken).get(container);
 
         if (store.containerExists(container)) {
             status = Response.Status.ACCEPTED;
@@ -108,7 +108,7 @@ public final class ContainerResource extends BlobStoreResource {
     @DELETE
     public Response deleteContainer(@NotNull @PathParam("container") String container,
                                     @HeaderParam("X-Auth-Token") String authToken) {
-        BlobStore store = getBlobStore(authToken);
+        BlobStore store = getBlobStore(authToken).get(container);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
@@ -126,7 +126,7 @@ public final class ContainerResource extends BlobStoreResource {
     public Response headContainer(@NotNull @PathParam("container") String container,
                                   @HeaderParam("X-Auth-Token") String authToken,
                                   @HeaderParam("X-Newest") @DefaultValue("false") boolean newest) {
-        BlobStore store = getBlobStore(authToken);
+        BlobStore store = getBlobStore(authToken).get(container);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
@@ -170,7 +170,7 @@ public final class ContainerResource extends BlobStoreResource {
                                   @QueryParam("path") String path,
                                   @HeaderParam("X-Newest") @DefaultValue("false") boolean newest,
                                   @HeaderParam("Accept") String accept) {
-        BlobStore store = getBlobStore(authToken);
+        BlobStore store = getBlobStore(authToken).get(container);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

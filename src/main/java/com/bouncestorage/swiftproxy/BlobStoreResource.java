@@ -31,9 +31,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.MessageBodyWriter;
 
 import org.glassfish.jersey.message.MessageBodyWorkers;
-
-import org.jclouds.blobstore.BlobStore;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,11 +45,12 @@ public abstract class BlobStoreResource {
     @Context
     private MessageBodyWorkers workers;
 
-    protected final BlobStore getBlobStore(String authToken) {
+    protected final BounceResourceConfig.AuthenticatedBlobStore getBlobStore(String authToken) {
         if (authToken == null) {
             throw new ClientErrorException(UNAUTHORIZED_BODY, Response.Status.UNAUTHORIZED);
         }
-        BlobStore blobStore = ((BounceResourceConfig) application).getBlobStore(authToken);
+        BounceResourceConfig.AuthenticatedBlobStore blobStore =
+                ((BounceResourceConfig) application).getBlobStore(authToken);
         if (blobStore == null) {
             throw new ClientErrorException(UNAUTHORIZED_BODY, Response.Status.UNAUTHORIZED);
         }

@@ -73,7 +73,7 @@ public final class AccountResource extends BlobStoreResource {
                                @HeaderParam("Accept") Optional<String> accept) {
         delimiter.ifPresent(x -> logger.info("delimiter not supported yet"));
 
-        List<ContainerEntry> entries = getBlobStore(authToken).list()
+        List<ContainerEntry> entries = getBlobStore(authToken).get().list()
                 .stream()
                 .map(StorageMetadata::getName)
                 .filter(name -> marker.map(m -> name.compareTo(m) > 0).orElse(true))
@@ -119,7 +119,7 @@ public final class AccountResource extends BlobStoreResource {
             return new BulkDeleteResult();
         }
         String[] objects = objectsList.split("\n");
-        BlobStore blobStore = getBlobStore(authToken);
+        BlobStore blobStore = getBlobStore(authToken).get();
         if (blobStore == null) {
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }

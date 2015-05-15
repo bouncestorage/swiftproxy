@@ -54,9 +54,19 @@ public final class BounceResourceConfig extends ResourceConfig {
     private final Properties properties;
     private URI endPoint;
     private BlobStoreLocator locator;
-    private Cache<String, BlobStore> tokensToBlobStore = CacheBuilder.newBuilder()
+    private Cache<String, AuthenticatedBlobStore> tokensToBlobStore = CacheBuilder.newBuilder()
             .expireAfterWrite(InfoResource.CONFIG.tempauth.token_life, TimeUnit.SECONDS)
             .build();
+
+    public interface AuthenticatedBlobStore {
+        BlobStore get(String container, String key);
+        default BlobStore get(String container) {
+            return get(container, null);
+        }
+        default BlobStore get() {
+            return get(null, null);
+        }
+    }
 
     BounceResourceConfig(Properties properties, BlobStoreLocator locator) {
         if (properties == null && locator == null) {
@@ -68,7 +78,7 @@ public final class BounceResourceConfig extends ResourceConfig {
     }
 
     public String authenticate(String identity, String credential) {
-        BlobStore blobStore = tryAuthenticate(identity, credential);
+        AuthenticatedBlobStore blobStore = tryAuthenticate(identity, credential);
         if (blobStore != null) {
             String token = "AUTH_tk" + RandomStringUtils.randomAlphanumeric(32);
             tokensToBlobStore.put(token, blobStore);
@@ -78,31 +88,33 @@ public final class BounceResourceConfig extends ResourceConfig {
         return null;
     }
 
-    private BlobStore tryAuthenticate(String identity, String credential) {
+    private AuthenticatedBlobStore tryAuthenticate(String identity, String credential) {
         if (locator != null) {
             Map.Entry<String, BlobStore> entry = locator.locateBlobStore(identity, null, null);
             if (entry != null && entry.getKey().equals(credential)) {
                 logger.debug("blob store for {} found", identity);
-                return entry.getValue();
+                return (container, key) -> locator.locateBlobStore(identity, container, key).getValue();
             } else {
                 logger.debug("blob store for {} not found", identity);
             }
+        } else {
+            logger.debug("fallback to authenticate with configured provider");
+            try {
+                BlobStoreContext context = ContextBuilder
+                        .newBuilder(properties.getProperty(Constants.PROPERTY_PROVIDER))
+                        .overrides(properties)
+                        .credentials(identity, credential)
+                        .build(BlobStoreContext.class);
+                return (container, key) -> context.getBlobStore();
+            } catch (Throwable e) {
+                throw propagate(e);
+            }
         }
 
-        logger.debug("fallback to authenticate with configured provider");
-        try {
-            BlobStoreContext context = ContextBuilder
-                    .newBuilder(properties.getProperty(Constants.PROPERTY_PROVIDER))
-                    .overrides(properties)
-                    .credentials(identity, credential)
-                    .build(BlobStoreContext.class);
-            return context.getBlobStore();
-        } catch (Throwable e) {
-            throw propagate(e);
-        }
+        return null;
     }
 
-    public BlobStore getBlobStore(String authToken) {
+    public AuthenticatedBlobStore getBlobStore(String authToken) {
         return tokensToBlobStore.getIfPresent(authToken);
     }
 
