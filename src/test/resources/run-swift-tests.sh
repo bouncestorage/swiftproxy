@@ -171,6 +171,8 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFile.testEtagResponse \
         test.functional.tests:TestDlo.test_get_manifest \
         test.functional.tests:TestDlo.test_get_manifest_document_itself \
+        test.functional.tests:TestDlo.test_get_range \
+        test.functional.tests:TestDlo.test_get_range_out_of_range \
         test.functional.tests:TestDlo.test_copy \
         test.functional.tests:TestDlo.test_copy_account \
         test.functional.tests:TestDlo.test_copy_manifest \
@@ -179,6 +181,8 @@ if [ $# == 0 ]; then
         test.functional.tests:TestFileComparison \
         test.functional.tests:TestSlo.test_slo_get_simple_manifest \
         test.functional.tests:TestSlo.test_slo_get_nested_manifest \
+        test.functional.tests:TestSlo.test_slo_ranged_get \
+        test.functional.tests:TestSlo.test_slo_ranged_submanifest \
         test.functional.tests:TestSlo.test_slo_etag_is_hash_of_etags \
         test.functional.tests:TestSlo.test_slo_etag_is_hash_of_etags_submanifests \
         test.functional.tests:TestSlo.test_slo_etag_mismatch \

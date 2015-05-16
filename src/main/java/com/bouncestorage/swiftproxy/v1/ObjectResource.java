@@ -70,9 +70,11 @@ import com.bouncestorage.swiftproxy.Utils;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
+import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
@@ -106,41 +108,46 @@ public final class ObjectResource extends BlobStoreResource {
     );
     private static final MediaType MANIFEST_CONTENT_TYPE = MediaType.APPLICATION_JSON_TYPE.withCharset("utf-8");
 
-    private static GetOptions parseRange(GetOptions options, String range) {
-        if (range != null) {
-            range = range.replaceAll(" ", "").toLowerCase();
-            String bytesUnit = "bytes=";
-            int idx = range.indexOf(bytesUnit);
-            if (idx == 0) {
-                String byteRangeSet = range.substring(bytesUnit.length());
-                Iterator<Object> iter = Iterators.forEnumeration(new StringTokenizer(byteRangeSet, ","));
-                StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, Spliterator.ORDERED), false)
-                        .map(rangeSpec -> (String) rangeSpec)
-                        .map(rangeSpec -> {
-                            int dash = rangeSpec.indexOf("-");
-                            if (dash == -1) {
-                                throw new BadRequestException("Range");
-                            }
-                            String firstBytePos = rangeSpec.substring(0, dash);
-                            String lastBytePos = rangeSpec.substring(dash + 1);
-                            Long firstByte = firstBytePos.isEmpty() ? null : Long.parseLong(firstBytePos);
-                            Long lastByte = lastBytePos.isEmpty() ? null : Long.parseLong(lastBytePos);
-                            return new Pair<>(firstByte, lastByte);
-                        })
-                        .forEach(rangeSpec -> {
-                            if (rangeSpec.getFirst() == null) {
-                                if (rangeSpec.getSecond() == 0) {
-                                    throw new ClientErrorException(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE);
-                                }
-                                options.tail(rangeSpec.getSecond());
-                            } else if (rangeSpec.getSecond() == null) {
-                                options.startAt(rangeSpec.getFirst());
-                            } else {
-                                options.range(rangeSpec.getFirst(), rangeSpec.getSecond());
-                            }
-                        });
-            }
+    private List<Pair<Long, Long>> parseRange(String range) {
+        range = range.replaceAll(" ", "").toLowerCase();
+        String bytesUnit = "bytes=";
+        int idx = range.indexOf(bytesUnit);
+        if (idx == 0) {
+            String byteRangeSet = range.substring(bytesUnit.length());
+            Iterator<Object> iter = Iterators.forEnumeration(new StringTokenizer(byteRangeSet, ","));
+            return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, Spliterator.ORDERED), false)
+                    .map(rangeSpec -> (String) rangeSpec)
+                    .map(rangeSpec -> {
+                        int dash = rangeSpec.indexOf("-");
+                        if (dash == -1) {
+                            throw new BadRequestException("Range");
+                        }
+                        String firstBytePos = rangeSpec.substring(0, dash);
+                        String lastBytePos = rangeSpec.substring(dash + 1);
+                        Long firstByte = firstBytePos.isEmpty() ? null : Long.parseLong(firstBytePos);
+                        Long lastByte = lastBytePos.isEmpty() ? null : Long.parseLong(lastBytePos);
+                        return new Pair<>(firstByte, lastByte);
+                    })
+                    .peek(r -> logger.debug("parsed range {} {}", r.getFirst(), r.getSecond()))
+                    .collect(Collectors.toList());
+        } else {
+            return null;
         }
+    }
+
+    private static GetOptions addRanges(GetOptions options, List<Pair<Long, Long>> ranges) {
+        ranges.forEach(rangeSpec -> {
+            if (rangeSpec.getFirst() == null) {
+                if (rangeSpec.getSecond() == 0) {
+                    throw new ClientErrorException(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE);
+                }
+                options.tail(rangeSpec.getSecond());
+            } else if (rangeSpec.getSecond() == null) {
+                options.startAt(rangeSpec.getFirst());
+            } else {
+                options.range(rangeSpec.getFirst(), rangeSpec.getSecond());
+            }
+        });
         return options;
     }
 
@@ -165,7 +172,14 @@ public final class ObjectResource extends BlobStoreResource {
             return notFound();
         }
 
-        GetOptions options = parseRange(new GetOptions(), range);
+        GetOptions options = new GetOptions();
+        List<Pair<Long, Long>> ranges = null;
+        if (range != null) {
+            ranges = parseRange(range);
+            if (ranges != null) {
+                options = addRanges(options, ranges);
+            }
+        }
 
         if (ifMatch != null) {
             options.ifETagMatches(ifMatch);
@@ -180,28 +194,45 @@ public final class ObjectResource extends BlobStoreResource {
             options.ifUnmodifiedSince(ifUnmodifiedSince);
         }
 
-        return getObject(blobStore, container, object, options, "get".equals(multiPartManifest));
+        return getObject(blobStore, container, object, options, ranges, "get".equals(multiPartManifest));
     }
 
     private Response getObject(BlobStore blobStore, String container, String object, GetOptions options,
-                               boolean multiPartManifest) {
-        Blob blob = blobStore.getBlob(container, object, options);
-        if (blob == null) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+                               List<Pair<Long, Long>> ranges, boolean multiPartManifest) {
+        Blob blob = null;
+        BlobMetadata meta;
+        if (ranges == null || multiPartManifest) {
+            blob = blobStore.getBlob(container, object, options);
+            if (blob == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            meta = blob.getMetadata();
+        } else {
+            logger.debug("range get, check to see if object is a large object");
+            meta = blobStore.blobMetadata(container, object);
+            if (meta == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
         }
 
-        BlobMetadata meta = blob.getMetadata();
         boolean isMultiPartManifest = false;
         if (meta.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
             isMultiPartManifest = true;
             if (!multiPartManifest) {
-                return getDloObject(blobStore, meta);
+                return getDloObject(blobStore, meta, ranges);
             }
         } else if (meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
             isMultiPartManifest = true;
             if (!multiPartManifest) {
-                return getSloObject(blobStore, blob);
+                if (blob == null) {
+                    blob = blobStore.getBlob(container, object);
+                }
+                return getSloObject(blobStore, blob, ranges);
             }
+        } else if (blob == null) {
+            // this is just a normal blob
+            blob = blobStore.getBlob(container, object, options);
+            meta = blob.getMetadata();
         }
 
         try {
@@ -215,21 +246,53 @@ public final class ObjectResource extends BlobStoreResource {
         }
     }
 
-    private Response getSloObject(BlobStore blobStore, Blob blob) {
+    private ClientErrorException requestRangeNotSatisfiable() {
+        throw new ClientErrorException(Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE);
+    }
+
+    private long getTotalRangesLength(List<Pair<Long, Long>> ranges, long totalSize) {
+        return ranges.stream().mapToLong(r -> {
+            if (r.getFirst() == null) {
+                if (r.getSecond() > totalSize) {
+                    throw requestRangeNotSatisfiable();
+                }
+                return r.getSecond();
+            } else {
+                if (r.getFirst() >= totalSize) {
+                    throw requestRangeNotSatisfiable();
+                }
+                if (r.getSecond() == null) {
+                    return totalSize - r.getFirst();
+                } else {
+                    return r.getSecond() - r.getFirst() + 1;
+                }
+            }
+        }).sum();
+    }
+
+    private Response getSloObject(BlobStore blobStore, Blob blob, List<Pair<Long, Long>> ranges) {
         try {
             Iterable<ManifestEntry> entries = Arrays.asList(readSLOManifest(blob.getPayload().openStream()));
             Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(entries);
+            logger.debug("getting SLO object: {}", sizeAndEtag);
+            entries.forEach(e -> logger.debug("sub-object: {}", e));
 
             InputStream combined = new ManifestObjectInputStream(blobStore, entries);
+            long size = sizeAndEtag.getFirst();
+            if (ranges != null) {
+                combined = new HttpRangeInputStream(combined, sizeAndEtag.getFirst(), ranges);
+                size = getTotalRangesLength(ranges, size);
+                logger.debug("range request for {} bytes", size);
+            }
             return addObjectHeaders(Response.ok(combined), blob.getMetadata(),
-                    Optional.of(overwriteSizeAndETag(sizeAndEtag.getFirst(), sizeAndEtag.getSecond())))
+                    Optional.of(overwriteSizeAndETag(size, sizeAndEtag.getSecond())))
                     .build();
         } catch (IOException e) {
             throw propagate(e);
         }
     }
 
-    private Response getDloObject(BlobStore blobStore, BlobMetadata meta) {
+    private Response getDloObject(BlobStore blobStore, BlobMetadata meta, List<Pair<Long, Long>> ranges) {
         String manifest = meta.getUserMetadata().get(DYNAMIC_OBJECT_MANIFEST);
         Pair<String, String> param = validateCopyParam(manifest);
         String dloContainer = param.getFirst();
@@ -255,10 +318,18 @@ public final class ObjectResource extends BlobStoreResource {
             }
         }
         Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(segments);
+        logger.debug("getting SLO object: {}", sizeAndEtag);
+        segments.forEach(e -> logger.debug("sub-object: {}", e));
 
         InputStream combined = new ManifestObjectInputStream(blobStore, segments);
+        long size = sizeAndEtag.getFirst();
+        if (ranges != null) {
+            combined = new HttpRangeInputStream(combined, sizeAndEtag.getFirst(), ranges);
+            size = getTotalRangesLength(ranges, size);
+            logger.debug("range request for {} bytes", size);
+        }
         return addObjectHeaders(Response.ok(combined), meta,
-                Optional.of(overwriteSizeAndETag(sizeAndEtag.getFirst(), sizeAndEtag.getSecond())))
+                Optional.of(overwriteSizeAndETag(size, sizeAndEtag.getSecond())))
                 .build();
     }
 
@@ -426,9 +497,9 @@ public final class ObjectResource extends BlobStoreResource {
             // copy is supposed to flatten the large object, which we have to emulate
             Response resp = null;
             if (userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
-                resp = getDloObject(blobStore, meta);
+                resp = getDloObject(blobStore, meta, null);
             } else if (userMetadata.containsKey(STATIC_OBJECT_MANIFEST)) {
-                resp = getSloObject(blobStore, blobStore.getBlob(container, objectName));
+                resp = getSloObject(blobStore, blobStore.getBlob(container, objectName), null);
             }
 
             if (resp != null) {
@@ -527,7 +598,7 @@ public final class ObjectResource extends BlobStoreResource {
     private void validateManifest(ManifestEntry[] res, BlobStore blobStore) {
         Arrays.stream(res).parallel()
                 .forEach(s -> {
-                    Response r = getObject(blobStore, s.container, s.object, GetOptions.NONE, false);
+                    Response r = getObject(blobStore, s.container, s.object, GetOptions.NONE, null, false);
                     if (!r.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
                         throw new ClientErrorException(Response.Status.CONFLICT);
                     }
@@ -766,14 +837,133 @@ public final class ObjectResource extends BlobStoreResource {
         return addObjectHeaders(responseBuilder, metaData, Optional.empty());
     }
 
+    private class HttpRangeInputStream extends InputStream {
+        private final InputStream in;
+        private final Iterator<Range> ranges;
+        private final long size;
+        private Range currentRange;
+        private long offset = -1;
+
+        HttpRangeInputStream(InputStream in, long size, List<Pair<Long, Long>> ranges) {
+            this.in = requireNonNull(in);
+            this.size = size;
+            if (ranges != null) {
+                this.ranges = ranges.stream().map(r -> new Range(r)).collect(Collectors.toList()).iterator();
+                currentRange = this.ranges.next();
+            } else {
+                this.ranges = Iterators.emptyIterator();
+                currentRange = new Range(new Pair(0, Long.MAX_VALUE));
+            }
+        }
+
+        private void seek() throws IOException {
+            long skipped = 0;
+            logger.debug("seeking to {} from {}", currentRange, offset);
+            if (currentRange.start > 0) {
+                skipped = in.skip(currentRange.start - offset);
+            } else if (currentRange.start == -1) {
+                // suffix range
+                skipped = in.skip(size - currentRange.available - offset);
+            }
+            offset += skipped;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (currentRange.available == 0) {
+                if (ranges.hasNext()) {
+                    currentRange = ranges.next();
+                    seek();
+                } else {
+                    return -1;
+                }
+            }
+            if (offset == -1) {
+                offset = 0;
+                seek();
+            }
+
+            int val = in.read();
+            if (val != -1) {
+                currentRange.available--;
+                offset++;
+            }
+            return val;
+        }
+
+        private class Range {
+            long start;
+            long available;
+            Range(Pair<Long, Long> rangeSpec) {
+                if (rangeSpec.getFirst() == null) {
+                    start = -1;
+                    available = rangeSpec.getSecond();
+                } else {
+                    start = rangeSpec.getFirst();
+                    if (rangeSpec.getSecond() == null) {
+                        available = Long.MAX_VALUE;
+                    } else {
+                        available = rangeSpec.getSecond() - start + 1;
+                    }
+                }
+            }
+
+            @Override
+            public String toString() {
+                return Objects.toStringHelper(this)
+                        .add("start", start)
+                        .add("available", available)
+                        .toString();
+            }
+        }
+    }
+
     private class ManifestObjectInputStream extends InputStream {
-        private final Iterator<ManifestEntry> entries;
+        private final PeekingIterator<ManifestEntry> entries;
         private final BlobStore blobStore;
         private InputStream currentStream;
         private long availableBytes;
+
         ManifestObjectInputStream(BlobStore blobStore, Iterable<ManifestEntry> entries) {
             this.blobStore = requireNonNull(blobStore);
-            this.entries = requireNonNull(entries).iterator();
+            this.entries = Iterators.peekingIterator(requireNonNull(entries).iterator());
+        }
+
+        @Override
+        public long skip(long requestSkip) throws IOException {
+            long remainingSkip = requestSkip;
+            if (remainingSkip <= 0) {
+                return 0;
+            }
+
+            if (availableBytes >= remainingSkip) {
+                long skipped = currentStream.skip(remainingSkip);
+                availableBytes -= skipped;
+                remainingSkip -= skipped;
+            } else {
+                remainingSkip -= availableBytes;
+                while (entries.hasNext()) {
+                    ManifestEntry e = entries.peek();
+                    if (remainingSkip > e.size_bytes) {
+                        entries.next();
+                        remainingSkip -= e.size_bytes;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (remainingSkip > 0) {
+                    openNextStream();
+
+                    if (currentStream != null) {
+                        long skipped = currentStream.skip(remainingSkip);
+                        availableBytes -= skipped;
+                        remainingSkip -= skipped;
+                    }
+                }
+            }
+
+            return requestSkip - remainingSkip;
         }
 
         void openNextStream() throws IOException {
@@ -788,7 +978,7 @@ public final class ObjectResource extends BlobStoreResource {
 
             ManifestEntry entry = entries.next();
             logger.info("opening {}/{}", entry.container, entry.object);
-            Response resp = getObject(blobStore, entry.container, entry.object, GetOptions.NONE, false);
+            Response resp = getObject(blobStore, entry.container, entry.object, GetOptions.NONE, null, false);
             if (!resp.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
                 throw new ClientErrorException(Response.Status.CONFLICT);
             }
@@ -845,6 +1035,14 @@ public final class ObjectResource extends BlobStoreResource {
             Pair<String, String> param = validateCopyParam(path);
             container = param.getFirst();
             object = param.getSecond();
+        }
+
+        @Override
+        public String toString() {
+            return Objects.toStringHelper(this)
+                    .add("object", container + "/" + object)
+                    .add("size", size_bytes)
+                    .toString();
         }
     }
 }
