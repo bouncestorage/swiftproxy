@@ -4,14 +4,39 @@ set -o xtrace
 set -o errexit
 set -o nounset
 
-PROXY_BIN="java -cp target/classes/:./target/swift-proxy-1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
+PROXY_BIN="java -cp target/classes/:./target/swift-proxy-1.1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
 PROXY_PORT="8080"
-TEST_CONF="${PWD}/src/main/resources/swiftproxy-saio.conf"
+TEST_CONF="${PWD}/target/swiftproxy-saio.conf"
+SWIFT=
+PROXY_PID=
+
+function cleanup {
+    if [ "$SWIFT" != "" ]; then
+        sudo docker stop $SWIFT
+        sudo docker rm $SWIFT
+    fi
+    if [ "$PROXY_PID" != "" ]; then
+        kill $PROXY_PID
+    fi
+}
+
+trap cleanup EXIT
+
+SWIFT=$(sudo docker run -d pbinkley/docker-swift)
+SWIFT_IP=$(sudo docker inspect  -f '{{ .NetworkSettings.IPAddress }}' $SWIFT)
+
+cat > target/swiftproxy-saio.conf <<EOF
+swiftproxy.endpoint=http://127.0.0.1:8080
+
+jclouds.provider=openstack-swift
+jclouds.endpoint=http://${SWIFT_IP}:8080/auth/v1.0
+jclouds.keystone.credential-type=tempAuthCredentials
+jclouds.identity=test:tester
+jclouds.credential=testing
+EOF
 
 stdbuf -oL -eL $PROXY_BIN --properties $TEST_CONF &
 PROXY_PID=$!
-
-trap "kill $PROXY_PID" EXIT
 
 pushd swift-tests
 
@@ -149,6 +174,8 @@ if [ $# == 0 ]; then
         test.functional.tests:TestDlo.test_copy \
         test.functional.tests:TestDlo.test_copy_account \
         test.functional.tests:TestDlo.test_copy_manifest \
+        test.functional.tests:TestDlo.test_dlo_if_match_get \
+        test.functional.tests:TestDlo.test_dlo_if_none_match_get \
         test.functional.tests:TestFileComparison \
         test.functional.tests:TestSlo.test_slo_get_simple_manifest \
         test.functional.tests:TestSlo.test_slo_get_nested_manifest \
