@@ -44,6 +44,8 @@ import com.bouncestorage.swiftproxy.BounceResourceConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.jclouds.blobstore.domain.StorageMetadata;
+
 @Singleton
 @Path("/v1/{account}")
 public final class AccountResource extends BlobStoreResource {
@@ -63,12 +65,12 @@ public final class AccountResource extends BlobStoreResource {
 
         List<ContainerEntry> entries = getBlobStore(authToken).list()
                 .stream()
-                .map(meta -> meta.getName())
+                .map(StorageMetadata::getName)
                 .filter(name -> marker.map(m -> name.compareTo(m) > 0).orElse(true))
                 .filter(name -> endMarker.map(m -> name.compareTo(m) < 0).orElse(true))
-                .filter(name -> prefix.map(p -> name.startsWith(p)).orElse(true))
+                .filter(name -> prefix.map(name::startsWith).orElse(true))
                 .limit(limit.orElse(Integer.MAX_VALUE))
-                .map(name -> new ContainerEntry(name))
+                .map(ContainerEntry::new)
                 .collect(Collectors.toList());
 
         MediaType formatType = BounceResourceConfig.getMediaType(format.orElse(accept.orElse(null)));
