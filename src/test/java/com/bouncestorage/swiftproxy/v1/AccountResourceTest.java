@@ -23,12 +23,15 @@ import java.util.Optional;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.SwiftProxy;
 import com.bouncestorage.swiftproxy.TestUtils;
+import com.google.common.base.Joiner;
 
 import org.junit.After;
 import org.junit.Before;
@@ -71,6 +74,22 @@ public final class AccountResourceTest {
     public void testHead() throws Exception {
         Response response = target.path(TestUtils.ACCOUNT_PATH).queryParam("format", "json").request().head();
         assertThat(response.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
+    }
+
+    @Test
+    public void testBulkDelete() throws Exception {
+        String authToken = TestUtils.createContainer(target, CONTAINER);
+
+        String[] removeObjects = {"/test/bar", "/test"};
+        Response response = target.path(TestUtils.ACCOUNT_PATH)
+                .queryParam("bulk-delete", "true")
+                .request()
+                .header("X-Auth-Token", authToken)
+                .post(Entity.entity(Joiner.on("\n").join(removeObjects), MediaType.TEXT_PLAIN));
+        assertThat(response.getStatus()).isEqualTo(Response.Status.OK.getStatusCode());
+        AccountResource.BulkDeleteResult result = response.readEntity(AccountResource.BulkDeleteResult.class);
+        assertThat(result.numberDeleted).isEqualTo(1);
+        assertThat(result.numberNotFound).isEqualTo(1);
     }
 
     List<AccountResource.ContainerEntry> listContainers() throws Exception {
