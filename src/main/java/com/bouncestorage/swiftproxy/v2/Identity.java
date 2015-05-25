@@ -23,6 +23,7 @@ import static com.google.common.base.Throwables.propagate;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,7 +42,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 
 import org.glassfish.grizzly.http.server.Request;
 
@@ -150,7 +150,7 @@ public final class Identity extends BlobStoreResource {
 
             static class User extends IDAndName {
                 @JsonProperty
-                List<IDAndName> roles = Lists.newArrayList();
+                List<IDAndName> roles = new ArrayList<>();
 
                 User(String id, String name) {
                     super(id, name);
@@ -159,7 +159,7 @@ public final class Identity extends BlobStoreResource {
 
             static class ServiceCatalog {
                 @JsonProperty
-                List<Endpoint> endpoints = Lists.newArrayList();
+                List<Endpoint> endpoints = new ArrayList<>();
                 @JsonProperty
                 String name = "Swift Object Storage";
                 @JsonProperty
