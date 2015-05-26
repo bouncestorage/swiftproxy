@@ -18,6 +18,7 @@ package com.bouncestorage.swiftproxy.v1;
 
 import static java.util.Objects.requireNonNull;
 
+import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -50,6 +51,8 @@ import com.bouncestorage.swiftproxy.BounceResourceConfig;
 import com.bouncestorage.swiftproxy.Utils;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.DateSerializer;
 
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.StorageMetadata;
@@ -246,6 +249,12 @@ public final class ContainerResource extends BlobStoreResource {
     @XmlRootElement(name = "object")
     @XmlType
     static class ObjectEntry {
+        static class SwiftDateSerializer extends DateSerializer {
+            SwiftDateSerializer() {
+                super(false, new SimpleDateFormat("yyyy-MM-dd'T'kk:mm:ss.SSSSSS"));
+            }
+        }
+
         @XmlElement
         String name;
         @XmlElement
@@ -254,6 +263,7 @@ public final class ContainerResource extends BlobStoreResource {
         long bytes;
         @XmlElement
         String content_type;
+        @JsonSerialize(using = SwiftDateSerializer.class)
         @XmlElement
         Date last_modified;
 
