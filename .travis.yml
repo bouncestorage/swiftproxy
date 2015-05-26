@@ -6,8 +6,8 @@ addons:
    - python-virtualenv
    - python-dev
    - libffi-dev
+   - python-swiftclient
 jdk:
   - oraclejdk8
 script:
  - mvn test
- - ./src/test/resources/run-swift-tests.sh

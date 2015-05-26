@@ -50,14 +50,17 @@ AUTH=$(stdbuf -oL -eL curl -i http://127.0.0.1:8080/auth/v1.0 -X GET \
 
 SWIFT="swift --debug -v -v --os-auth-token $AUTH --os-storage-url http://127.0.0.1:8080/v1/AUTH_test:tester"
 
+$SWIFT capabilities
 $SWIFT list
 $SWIFT post test_container
 $SWIFT stat test_container
 $SWIFT list
+$SWIFT stat test_container README.md
 $SWIFT upload test_container README.md
 $SWIFT stat test_container README.md
 $SWIFT list test_container
 $SWIFT list test_container --lh
-
-EXIT_CODE=$?
-exit $?
+$SWIFT delete test_container README.md
+$SWIFT list test_container --lh
+$SWIFT delete test_container
+$SWIFT list
