@@ -139,10 +139,13 @@ public final class ContainerResource extends BlobStoreResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
-        return Response.status(Response.Status.NO_CONTENT)
+        return Response.status(Response.Status.NO_CONTENT).entity("")
                 .header("X-Container-Object-Count", 0)
                 .header("X-Container-Bytes-Used", 0)  // TODO: bogus value
                 .header("X-Versions-Location", "")
+                .header("X-Timestamp", -1)
+                .header("X-Trans-Id", -1)
+                .header("Accept-Ranges", "bytes")
                 .build();
     }
 
@@ -241,12 +244,18 @@ public final class ContainerResource extends BlobStoreResource {
             });
         }
 
+        // XXX semi-bogus value
+        long totalBytes = entries.stream().mapToLong(e -> e.bytes).sum();
+
         ContainerRoot root = new ContainerRoot();
         root.name = container;
         root.object = entries;
         return output(root, entries, formatType)
                 .header("X-Container-Object-Count", entries.size())
-                .header("X-Container-Bytes-Used", 0)  // TODO: bogus value
+                .header("X-Container-Bytes-Used", totalBytes)
+                .header("X-Timestamp", -1)
+                .header("X-Trans-Id", -1)
+                .header("Accept-Ranges", "bytes")
                 .build();
 
     }
