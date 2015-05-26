@@ -70,6 +70,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
@@ -827,6 +828,9 @@ public final class ObjectResource extends BlobStoreResource {
             responseBuilder.header(DYNAMIC_OBJECT_MANIFEST, userMetadata.get(DYNAMIC_OBJECT_MANIFEST));
         }
 
+        String contentType = Strings.isNullOrEmpty(metaData.getContentMetadata().getContentType()) ?
+                MediaType.APPLICATION_OCTET_STREAM : metaData.getContentMetadata().getContentType();
+
         Map<String, Supplier<Object>> defaultHeaders = ImmutableMap.<String, Supplier<Object>>builder()
                 .put(HttpHeaders.CONTENT_DISPOSITION, () -> metaData.getContentMetadata().getContentDisposition())
                 .put(HttpHeaders.CONTENT_ENCODING, () -> metaData.getContentMetadata().getContentEncoding())
@@ -835,7 +839,7 @@ public final class ObjectResource extends BlobStoreResource {
                 .put(HttpHeaders.ETAG, metaData::getETag)
                 .put(STATIC_OBJECT_MANIFEST, () -> userMetadata.containsKey(STATIC_OBJECT_MANIFEST))
                 .put(HttpHeaders.DATE, Date::new)
-                .put(HttpHeaders.CONTENT_TYPE, () -> metaData.getContentMetadata().getContentType())
+                .put(HttpHeaders.CONTENT_TYPE, () -> contentType)
                 .build();
 
         overwrites.ifPresent(headers ->

@@ -108,6 +108,11 @@ public final class AccountResource extends BlobStoreResource {
         root.container = entries;
         return output(root, entries, formatType)
                 .header("X-Account-Container-Count", entries.size())
+                .header("X-Account-Object-Count", -1)
+                .header("X-Account-Bytes-Used", -1)
+                .header("X-Timestamp", -1)
+                .header("X-Trans-Id", -1)
+                .header("Accept-Ranges", "bytes")
                 .build();
     }
 
@@ -115,7 +120,14 @@ public final class AccountResource extends BlobStoreResource {
     public Response headAccount(@NotNull @PathParam("account") String account,
                                 @HeaderParam("X-Auth-Token") String authToken,
                                 @HeaderParam("X-Newest") boolean newest) {
-        return Response.noContent().build();
+        return Response.noContent()
+                .header("X-Account-Container-Count", -1)
+                .header("X-Account-Object-Count", -1)
+                .header("X-Account-Bytes-Used", -1)
+                .header("X-Timestamp", -1)
+                .header("X-Trans-Id", -1)
+                .header("Accept-Ranges", "bytes")
+                .build();
     }
 
     @DELETE

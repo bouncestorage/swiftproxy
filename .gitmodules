@@ -1,3 +1,6 @@
 [submodule "swift-tests"]
 	path = swift-tests
 	url = https://github.com/bouncestorage/swift.git
+[submodule "swiftclient-tests"]
+	path = swiftclient-tests
+	url = https://github.com/openstack/python-swiftclient
