@@ -65,7 +65,7 @@ public final class Main {
         String endpoint = properties.getProperty(Constants.PROPERTY_ENDPOINT);
         String proxyEndpoint = properties.getProperty(SwiftProxy.PROPERTY_ENDPOINT);
         if (provider == null || identity == null || credential == null || proxyEndpoint == null) {
-            System.err.println("Properties file must contain:%n" +
+            System.err.format("Properties file must contain:%n" +
                     Constants.PROPERTY_PROVIDER + "%n" +
                     Constants.PROPERTY_IDENTITY + "%n" +
                     Constants.PROPERTY_CREDENTIAL + "%n" +
