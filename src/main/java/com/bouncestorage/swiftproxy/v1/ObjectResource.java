@@ -231,7 +231,15 @@ public final class ObjectResource extends BlobStoreResource {
             }
         } else if (blob == null) {
             // this is just a normal blob
-            blob = blobStore.getBlob(container, object, options);
+            try {
+                blob = blobStore.getBlob(container, object, options);
+            } catch (IllegalArgumentException e) {
+                if (ranges != null) {
+                    throw requestRangeNotSatisfiable();
+                } else {
+                    throw e;
+                }
+            }
             meta = blob.getMetadata();
         }
 
