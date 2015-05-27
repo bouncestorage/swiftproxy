@@ -117,6 +117,8 @@ if [ "$TRAVIS" != "true" ]; then
     SWIFT=$(sudo docker run -d pbinkley/docker-swift)
     SWIFT_IP=$(sudo docker inspect  -f '{{ .NetworkSettings.IPAddress }}' $SWIFT)
     SWIFT_TESTS="$SWIFT_TESTS $SWIFT_DOCKER_TESTS"
+    export NOSE_NOCAPTURE=1
+    export NOSE_NOLOGCAPTURE=1
 
     cat > target/swiftproxy-saio.conf <<EOF
 swiftproxy.endpoint=http://127.0.0.1:8080
@@ -205,13 +207,9 @@ max_manifest_segments = 1000
 EOF
 
 export PYTHONUNBUFFERED=1
-export NOSE_NOCAPTURE=1
-export NOSE_NOLOGCAPTURE=1
-
 
 if [ $# == 0 ]; then
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v \
-        --logging-level=debug \
         $SWIFT_TESTS
 
 else
