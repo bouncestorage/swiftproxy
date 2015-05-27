@@ -30,6 +30,8 @@ import com.bouncestorage.swiftproxy.v1.InfoResource;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.inject.Module;
 
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -39,6 +41,7 @@ import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
+import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,6 +107,7 @@ public final class BounceResourceConfig extends ResourceConfig {
                         .newBuilder(properties.getProperty(Constants.PROPERTY_PROVIDER))
                         .overrides(properties)
                         .credentials(identity, credential)
+                        .modules(ImmutableSet.<Module>of(new SLF4JLoggingModule()))
                         .build(BlobStoreContext.class);
                 return (container, key) -> context.getBlobStore();
             } catch (Throwable e) {
