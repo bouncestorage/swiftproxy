@@ -24,15 +24,12 @@ trap cleanup EXIT
 
 SWIFT_DOCKER_TESTS=$(echo \
         test.functional.tests:TestContainerPaths \
-        test.functional.tests:TestFile.testCopy \
         test.functional.tests:TestFile.testCopyAccount \
-        test.functional.tests:TestFileComparison \
         test.functional.tests:TestFile.testMetadataNumberLimit \
         test.functional.tests:TestFile.testMetadataLengthLimits \
+        test.functional.tests:TestFileComparison \
         test.functional.tests:TestSlo.test_slo_copy_account \
         test.functional.tests:TestSlo.test_slo_copy_the_manifest_account \
-        test.functional.tests:TestFile.testRangedGets \
-        test.functional.tests:TestFile.testRangedGetsWithLWSinHeader \
 )
 
 
@@ -65,6 +62,7 @@ SWIFT_TESTS=$(echo \
         test.functional.tests:TestContainer.testContainerFileListWithLimit \
         test.functional.tests:TestContainer.testTooLongName \
         test.functional.tests:TestContainer.testContainerExistenceCachingProblem \
+        test.functional.tests:TestFile.testCopy \
         test.functional.tests:TestFile.testCopy404s \
         test.functional.tests:TestFile.testCopyNoDestinationHeader \
         test.functional.tests:TestFile.testCopyDestinationSlashProblems \
@@ -74,6 +72,8 @@ SWIFT_TESTS=$(echo \
         test.functional.tests:TestFile.testQuestionMarkInName \
         test.functional.tests:TestFile.testDeleteThen404s \
         test.functional.tests:TestFile.testBlankMetadataName \
+        test.functional.tests:TestFile.testRangedGets \
+        test.functional.tests:TestFile.testRangedGetsWithLWSinHeader \
         test.functional.tests:TestFile.testNoContentLengthForPut \
         test.functional.tests:TestFile.testDelete \
         test.functional.tests:TestFile.testBadHeaders \

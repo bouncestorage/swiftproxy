@@ -57,7 +57,10 @@ public final class BounceResourceConfig extends ResourceConfig {
     private final Properties properties;
     private URI endPoint;
     private BlobStoreLocator locator;
-    private Cache<String, AuthenticatedBlobStore> tokensToBlobStore = CacheBuilder.newBuilder()
+    private Cache<String, String> tokensToIdentities = CacheBuilder.newBuilder()
+            .expireAfterWrite(InfoResource.CONFIG.tempauth.token_life, TimeUnit.SECONDS)
+            .build();
+    private Cache<String, AuthenticatedBlobStore> identitiesToBlobStore = CacheBuilder.newBuilder()
             .expireAfterWrite(InfoResource.CONFIG.tempauth.token_life, TimeUnit.SECONDS)
             .build();
 
@@ -84,7 +87,8 @@ public final class BounceResourceConfig extends ResourceConfig {
         AuthenticatedBlobStore blobStore = tryAuthenticate(identity, credential);
         if (blobStore != null) {
             String token = "AUTH_tk" + RandomStringUtils.randomAlphanumeric(32);
-            tokensToBlobStore.put(token, blobStore);
+            tokensToIdentities.put(token, identity);
+            identitiesToBlobStore.put(identity, blobStore);
             return token;
         }
 
@@ -102,9 +106,20 @@ public final class BounceResourceConfig extends ResourceConfig {
             }
         } else {
             logger.debug("fallback to authenticate with configured provider");
+            String provider = properties.getProperty(Constants.PROPERTY_PROVIDER);
+            if (provider.equals("transient")) {
+                /* there's no authentication for transient blobstores, so simply re-use
+                   the previous blobstore so that multiple authentication will reuse the
+                   same namespace */
+                AuthenticatedBlobStore blobStore = identitiesToBlobStore.getIfPresent(identity);
+                if (blobStore != null) {
+                    return blobStore;
+                }
+            }
+
             try {
                 BlobStoreContext context = ContextBuilder
-                        .newBuilder(properties.getProperty(Constants.PROPERTY_PROVIDER))
+                        .newBuilder(provider)
                         .overrides(properties)
                         .credentials(identity, credential)
                         .modules(ImmutableSet.<Module>of(new SLF4JLoggingModule()))
@@ -119,7 +134,8 @@ public final class BounceResourceConfig extends ResourceConfig {
     }
 
     public AuthenticatedBlobStore getBlobStore(String authToken) {
-        return tokensToBlobStore.getIfPresent(authToken);
+        String identity = tokensToIdentities.getIfPresent(authToken);
+        return identitiesToBlobStore.getIfPresent(identity);
     }
 
     public static MediaType getMediaType(String format) {

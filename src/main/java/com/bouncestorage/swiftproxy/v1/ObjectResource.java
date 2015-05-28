@@ -50,7 +50,6 @@ import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
 import javax.ws.rs.HeaderParam;
@@ -153,7 +152,7 @@ public final class ObjectResource extends BlobStoreResource {
 
     @GET
     public Response getObject(@NotNull @PathParam("container") String container,
-                              @NotNull @Encoded @PathParam("object") String object,
+                              @NotNull @PathParam("object") String object,
                               @NotNull @PathParam("account") String account,
                               @HeaderParam("X-Auth-Token") String authToken,
                               @HeaderParam("X-Newest") boolean newest,
@@ -437,7 +436,7 @@ public final class ObjectResource extends BlobStoreResource {
     @COPY
     @Consumes(" ")
     public Response copyObject(@NotNull @PathParam("container") String container,
-                               @NotNull @Encoded @PathParam("object") String objectName,
+                               @NotNull @PathParam("object") String objectName,
                                @NotNull @PathParam("account") String account,
                                @HeaderParam("X-Auth-Token") String authToken,
                                @NotNull @HeaderParam("Destination") String destination,
@@ -466,12 +465,17 @@ public final class ObjectResource extends BlobStoreResource {
             return badRequest();
         }
 
-        logger.info("copy {}/{} to {}/{}", container, objectName, destContainer, destObject);
+        logger.debug("copy {}/{} to {}/{}", container, objectName, destContainer, destObject);
 
         Map<String, String> additionalUserMeta = getUserMetadata(request);
 
         BlobStore blobStore = getBlobStore(authToken).get(container, objectName);
-        if (!blobStore.containerExists(container) || !blobStore.containerExists(destContainer)) {
+        if (!blobStore.containerExists(container)) {
+            logger.info("container {} does not exist", container);
+            return notFound();
+        }
+        if (!blobStore.containerExists(destContainer)) {
+            logger.info("container {} does not exist", destContainer);
             return notFound();
         }
         String copiedFrom;
@@ -531,7 +535,7 @@ public final class ObjectResource extends BlobStoreResource {
     @POST
     @Consumes(" ")
     public Response postObject(@NotNull @PathParam("container") String container,
-                               @NotNull @Encoded @PathParam("object") String objectName,
+                               @NotNull @PathParam("object") String objectName,
                                @NotNull @PathParam("account") String account,
                                @HeaderParam("X-Auth-Token") String authToken,
                                @HeaderParam("X-Delete-At") long deleteAt,
@@ -626,7 +630,7 @@ public final class ObjectResource extends BlobStoreResource {
 
     @PUT
     public Response putObject(@NotNull @PathParam("container") String container,
-                              @NotNull @Encoded @PathParam("object") String objectName,
+                              @NotNull @PathParam("object") String objectName,
                               @NotNull @PathParam("account") String account,
                               @QueryParam("multipart-manifest") String multiPartManifest,
                               @QueryParam("signature") String signature,
@@ -738,7 +742,7 @@ public final class ObjectResource extends BlobStoreResource {
 
     @HEAD
     public Response headObject(@NotNull @PathParam("container") String container,
-                               @NotNull @Encoded @PathParam("object") String objectName,
+                               @NotNull @PathParam("object") String objectName,
                                @NotNull @PathParam("account") String account,
                                @HeaderParam("X-Auth-Token") String authToken,
                                @QueryParam("multipart-manifest") String multiPartManifest) {
@@ -775,7 +779,7 @@ public final class ObjectResource extends BlobStoreResource {
     @DELETE
     public Response deleteObject(@NotNull @PathParam("account") String account,
                                  @NotNull @PathParam("container") String container,
-                                 @NotNull @Encoded @PathParam("object") String objectName,
+                                 @NotNull @PathParam("object") String objectName,
                                  @QueryParam("multipart-manifest") String multipartManifest,
                                  @HeaderParam("X-Auth-Token") String authToken) throws IOException {
         if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
