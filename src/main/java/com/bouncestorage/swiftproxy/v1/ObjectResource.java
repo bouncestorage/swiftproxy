@@ -610,7 +610,7 @@ public final class ObjectResource extends BlobStoreResource {
                     if (!r.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
                         throw new ClientErrorException(Response.Status.CONFLICT);
                     }
-                    long size = Long.valueOf(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
+                    long size = Long.parseLong(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
                     String etag = r.getHeaderString(HttpHeaders.ETAG);
                     if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
                         etag = etag.substring(1, etag.length() - 1);
@@ -759,7 +759,7 @@ public final class ObjectResource extends BlobStoreResource {
                 String sloData = meta.getUserMetadata().get(STATIC_OBJECT_MANIFEST);
                 String[] data = sloData.split(" ", 2);
                 return addObjectHeaders(Response.ok(), meta,
-                        Optional.of(overwriteSizeAndETag(Long.valueOf(data[0]), data[1])))
+                        Optional.of(overwriteSizeAndETag(Long.parseLong(data[0]), data[1])))
                         .build();
             }
         }
@@ -990,7 +990,7 @@ public final class ObjectResource extends BlobStoreResource {
             if (!resp.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
                 throw new ClientErrorException(Response.Status.CONFLICT);
             }
-            availableBytes = Long.valueOf(resp.getHeaderString(HttpHeaders.CONTENT_LENGTH));
+            availableBytes = Long.parseLong(resp.getHeaderString(HttpHeaders.CONTENT_LENGTH));
             currentStream = (InputStream) resp.getEntity();
             String etag = resp.getHeaderString(HttpHeaders.ETAG);
             if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
