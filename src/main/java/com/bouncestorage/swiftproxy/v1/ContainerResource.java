@@ -18,6 +18,10 @@ package com.bouncestorage.swiftproxy.v1;
 
 import static java.util.Objects.requireNonNull;
 
+import static com.google.common.base.Throwables.propagate;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.Date;
@@ -225,6 +229,16 @@ public final class ContainerResource extends BlobStoreResource {
             formatType = MediaType.valueOf(accept.get());
         } else {
             formatType = MediaType.TEXT_PLAIN_TYPE;
+        }
+
+        if (store.getContext().unwrap().getId().equals("transient")) {
+            entries.forEach(entry -> {
+                try {
+                    entry.name = URLDecoder.decode(entry.name, "UTF-8");
+                } catch (UnsupportedEncodingException e) {
+                    throw propagate(e);
+                }
+            });
         }
 
         ContainerRoot root = new ContainerRoot();

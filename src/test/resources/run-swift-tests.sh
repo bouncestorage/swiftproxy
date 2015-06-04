@@ -209,6 +209,7 @@ EOF
 export PYTHONUNBUFFERED=1
 
 if [ $# == 0 ]; then
+    SWIFT_TESTS=$(echo $SWIFT_TESTS | tr ' ' '\n' | sort)
     SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v \
         $SWIFT_TESTS
 
