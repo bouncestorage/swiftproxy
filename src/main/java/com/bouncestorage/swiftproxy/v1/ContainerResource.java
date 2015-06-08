@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -164,12 +165,12 @@ public final class ContainerResource extends BlobStoreResource {
                                   @QueryParam("limit") Integer limit,
                                   @QueryParam("marker") String marker,
                                   @QueryParam("end_marker") String endMarker,
-                                  @QueryParam("format") @DefaultValue("plain") String format,
+                                  @QueryParam("format") Optional<String> format,
                                   @QueryParam("prefix") String prefixParam,
                                   @QueryParam("delimiter") String delimiterParam,
                                   @QueryParam("path") String path,
                                   @HeaderParam("X-Newest") @DefaultValue("false") boolean newest,
-                                  @HeaderParam("Accept") String accept) {
+                                  @HeaderParam("Accept") Optional<String> accept) {
         BlobStore store = getBlobStore(authToken).get(container);
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -214,7 +215,14 @@ public final class ContainerResource extends BlobStoreResource {
                         contentType(meta), meta.getLastModified()))
                 .collect(Collectors.toList());
 
-        MediaType formatType = BounceResourceConfig.getMediaType(format);
+        MediaType formatType;
+        if (format.isPresent()) {
+            formatType = BounceResourceConfig.getMediaType(format.get());
+        } else if (accept.isPresent()) {
+            formatType = MediaType.valueOf(accept.get());
+        } else {
+            formatType = MediaType.TEXT_PLAIN_TYPE;
+        }
 
         ContainerRoot root = new ContainerRoot();
         root.name = container;
