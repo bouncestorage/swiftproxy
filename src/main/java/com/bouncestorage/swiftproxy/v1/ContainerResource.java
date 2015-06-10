@@ -134,7 +134,7 @@ public final class ContainerResource extends BlobStoreResource {
 
         return Response.status(Response.Status.NO_CONTENT)
                 .header("X-Container-Object-Count", 0)
-                .header("X-Container-Bytes-Used", 0)
+                .header("X-Container-Bytes-Used", 0)  // TODO: bogus value
                 .header("X-Versions-Location", "")
                 .build();
     }
@@ -229,6 +229,7 @@ public final class ContainerResource extends BlobStoreResource {
         root.object = entries;
         return output(root, entries, formatType)
                 .header("X-Container-Object-Count", entries.size())
+                .header("X-Container-Bytes-Used", 0)  // TODO: bogus value
                 .build();
 
     }
