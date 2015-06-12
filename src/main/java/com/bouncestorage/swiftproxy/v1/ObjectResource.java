@@ -99,7 +99,7 @@ import org.jclouds.openstack.swift.v1.CopyObjectException;
 
 @Path("/v1/{account}/{container}/{object:.*}")
 public final class ObjectResource extends BlobStoreResource {
-    private static final String META_HEADER_PREFIX = "x-object-meta-";
+    private static final String META_HEADER_PREFIX = "X-Object-Meta-";
     private static final String DYNAMIC_OBJECT_MANIFEST = "x-object-manifest";
     private static final String STATIC_OBJECT_MANIFEST = "x-static-large-object";
     private static final Set<String> RESERVED_METADATA = ImmutableSet.of(
@@ -360,9 +360,9 @@ public final class ObjectResource extends BlobStoreResource {
 
     private Map<String, String> getUserMetadata(Request request) {
         return StreamSupport.stream(request.getHeaderNames().spliterator(), false)
-                .filter(name -> name.toLowerCase().startsWith(META_HEADER_PREFIX))
+                .filter(name -> name.toLowerCase().startsWith(META_HEADER_PREFIX.toLowerCase()))
                 .filter(name -> {
-                    if (name.equals(META_HEADER_PREFIX) || RESERVED_METADATA.contains(name)) {
+                    if (name.equalsIgnoreCase(META_HEADER_PREFIX) || RESERVED_METADATA.contains(name)) {
                         throw new BadRequestException();
                     }
                     return true;
