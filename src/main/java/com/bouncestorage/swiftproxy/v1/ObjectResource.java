@@ -710,6 +710,12 @@ public final class ObjectResource extends BlobStoreResource {
             BlobBuilder.PayloadBlobBuilder builder = blobStore.blobBuilder(objectName)
                     .userMetadata(metadata)
                     .payload(is);
+            if (contentDisposition != null) {
+                builder.contentDisposition(contentDisposition);
+            }
+            if (contentEncoding != null) {
+                builder.contentEncoding(contentEncoding);
+            }
             if (contentType != null) {
                 builder.contentType(contentType(contentType.toString()));
             }
@@ -821,6 +827,8 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         Map<String, Supplier<Object>> defaultHeaders = ImmutableMap.<String, Supplier<Object>>builder()
+                .put(HttpHeaders.CONTENT_DISPOSITION, () -> metaData.getContentMetadata().getContentDisposition())
+                .put(HttpHeaders.CONTENT_ENCODING, () -> metaData.getContentMetadata().getContentEncoding())
                 .put(HttpHeaders.CONTENT_LENGTH, metaData::getSize)
                 .put(HttpHeaders.LAST_MODIFIED, metaData::getLastModified)
                 .put(HttpHeaders.ETAG, metaData::getETag)
