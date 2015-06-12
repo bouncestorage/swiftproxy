@@ -18,6 +18,11 @@ package com.bouncestorage.swiftproxy.v1;
 
 import static java.util.Objects.requireNonNull;
 
+import static com.google.common.base.Throwables.propagate;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -37,6 +42,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.xml.bind.annotation.XmlAttribute;
@@ -50,15 +56,18 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 
+import org.glassfish.grizzly.http.server.Request;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.ContainerNotFoundException;
-
 import org.jclouds.blobstore.domain.StorageMetadata;
+import org.jclouds.util.Strings2;
 
 @Singleton
 @Path("/v1/{account}")
 public final class AccountResource extends BlobStoreResource {
+    private static final Iterable<Character> skipPathEncoding = Lists.charactersOf("/:;=");
 
     @GET
     public Response getAccount(@NotNull @PathParam("account") String account,
@@ -111,42 +120,61 @@ public final class AccountResource extends BlobStoreResource {
     @Consumes(MediaType.TEXT_PLAIN)
     @Produces(MediaType.APPLICATION_JSON)
     public BulkDeleteResult bulkDelete(@NotNull @PathParam("account") String account,
-                                       @QueryParam("bulk-delete") boolean bulkDelete,
+                                       @QueryParam("bulk-delete") String bulkDelete,
                                        @HeaderParam("X-Auth-Token") String authToken,
-                                       String objectsList) throws JsonProcessingException {
-        if (!bulkDelete) {
+                                       @Context Request request) throws JsonProcessingException {
+        if (bulkDelete == null) {
             // TODO: Currently this will match the account delete request as well, which we do not implement
             throw new WebApplicationException(Response.Status.NOT_IMPLEMENTED);
         }
 
-        if (objectsList == null) {
-            return new BulkDeleteResult();
-        }
-        String[] objects = objectsList.split("\n");
         BlobStore blobStore = getBlobStore(authToken).get();
         if (blobStore == null) {
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(request.getInputStream()));
+        String line;
+        ArrayList<String> objects = new ArrayList<>();
+
+        boolean isTransient = blobStore.getContext().unwrap().getId().equals("transient");
+        try {
+            while ((line = in.readLine()) != null) {
+                if (isTransient) {
+                    // jclouds does not escape things correctly
+                    line = Strings2.urlEncode(line, skipPathEncoding);
+                }
+                objects.add(line);
+            }
+        } catch (IOException e) {
+            throw propagate(e);
+        }
+
         BulkDeleteResult result = new BulkDeleteResult();
         for (String objectContainer : objects) {
             try {
-                if (!objectContainer.startsWith("/")) {
-                    result.errors.add(objectContainer);
-                    continue;
+                if (objectContainer.startsWith("/")) {
+                    objectContainer = objectContainer.substring(1);
                 }
-                int separatorIndex = objectContainer.indexOf("/", 1);
+                int separatorIndex = objectContainer.indexOf('/');
                 if (separatorIndex < 0) {
                     blobStore.deleteContainer(objectContainer.substring(1));
                     result.numberDeleted += 1;
                     continue;
                 }
-                String container = objectContainer.substring(1, separatorIndex);
+                String container = objectContainer.substring(0, separatorIndex);
                 String object = objectContainer.substring(separatorIndex + 1);
-                blobStore.removeBlob(container, object);
-                result.numberDeleted += 1;
+
+                if (!blobStore.blobExists(container, object)) {
+                    result.numberNotFound += 1;
+                } else {
+                    blobStore.removeBlob(container, object);
+                    result.numberDeleted += 1;
+                }
             } catch (ContainerNotFoundException e) {
                 result.numberNotFound += 1;
             } catch (Exception e) {
+                e.printStackTrace();
                 result.errors.add(objectContainer);
             }
         }
