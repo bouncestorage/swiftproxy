@@ -360,7 +360,6 @@ public final class ObjectResource extends BlobStoreResource {
 
     private Map<String, String> getUserMetadata(Request request) {
         return StreamSupport.stream(request.getHeaderNames().spliterator(), false)
-                .peek(name -> logger.info("header: {}", name))
                 .filter(name -> name.toLowerCase().startsWith(META_HEADER_PREFIX))
                 .filter(name -> {
                     if (name.equals(META_HEADER_PREFIX) || RESERVED_METADATA.contains(name)) {
