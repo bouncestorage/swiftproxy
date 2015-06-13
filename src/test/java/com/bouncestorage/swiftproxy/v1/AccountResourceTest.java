@@ -82,7 +82,9 @@ public final class AccountResourceTest {
 
         String[] removeObjects = {"/test/bar", "/test"};
         Response response = target.path(TestUtils.ACCOUNT_PATH)
-                .queryParam("bulk-delete", "true")
+                // swift actually sends ?bulk-delete and this sends ?bulk-delete=, but
+                // that's the closest we can get
+                .queryParam("bulk-delete", "")
                 .request()
                 .header("X-Auth-Token", authToken)
                 .post(Entity.entity(Joiner.on("\n").join(removeObjects), MediaType.TEXT_PLAIN));
