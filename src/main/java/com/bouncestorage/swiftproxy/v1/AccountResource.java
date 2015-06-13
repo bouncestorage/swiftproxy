@@ -24,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -56,7 +57,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 
 import org.glassfish.grizzly.http.server.Request;
 import org.jclouds.blobstore.BlobStore;
@@ -151,33 +154,45 @@ public final class AccountResource extends BlobStoreResource {
         }
 
         BulkDeleteResult result = new BulkDeleteResult();
+        Multimap<String, String> removeBlobsMap = ArrayListMultimap.create();
+        List<String> deleteContainers = new ArrayList<>();
         for (String objectContainer : objects) {
-            try {
-                if (objectContainer.startsWith("/")) {
-                    objectContainer = objectContainer.substring(1);
-                }
-                int separatorIndex = objectContainer.indexOf('/');
-                if (separatorIndex < 0) {
-                    blobStore.deleteContainer(objectContainer.substring(1));
-                    result.numberDeleted += 1;
-                    continue;
-                }
-                String container = objectContainer.substring(0, separatorIndex);
-                String object = objectContainer.substring(separatorIndex + 1);
+            if (objectContainer.startsWith("/")) {
+                objectContainer = objectContainer.substring(1);
+            }
+            int separatorIndex = objectContainer.indexOf('/');
+            if (separatorIndex < 0) {
+                deleteContainers.add(objectContainer.substring(1));
+                continue;
+            }
+            String container = objectContainer.substring(0, separatorIndex);
+            String object = objectContainer.substring(separatorIndex + 1);
+            removeBlobsMap.put(container, object);
+        }
 
-                if (!blobStore.blobExists(container, object)) {
-                    result.numberNotFound += 1;
-                } else {
-                    blobStore.removeBlob(container, object);
-                    result.numberDeleted += 1;
-                }
+        removeBlobsMap.keySet().forEach(container -> {
+            Collection<String> blobs = removeBlobsMap.get(container);
+            try {
+                blobStore.removeBlobs(container, blobs);
+                result.numberDeleted += blobs.size();
+            } catch (ContainerNotFoundException e) {
+                result.numberNotFound += blobs.size();
+            } catch (Exception e) {
+                logger.debug("Failed to remove blobs: " + e.getMessage(), e);
+                blobs.forEach(blob -> result.errors.add(container + "/" + blob));
+            }
+        });
+        deleteContainers.forEach(container -> {
+            try {
+                blobStore.deleteContainer(container);
+                result.numberDeleted += 1;
             } catch (ContainerNotFoundException e) {
                 result.numberNotFound += 1;
             } catch (Exception e) {
-                e.printStackTrace();
-                result.errors.add(objectContainer);
+                logger.debug("Failed to delete container " + container + ": " + e.getMessage(), e);
+                result.errors.add(container);
             }
-        }
+        });
 
         if (result.errors.isEmpty()) {
             result.responseStatus = Response.Status.OK.toString();
