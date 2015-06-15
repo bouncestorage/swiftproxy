@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import javax.inject.Singleton;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
@@ -114,6 +115,16 @@ public final class AccountResource extends BlobStoreResource {
                                 @HeaderParam("X-Auth-Token") String authToken,
                                 @HeaderParam("X-Newest") boolean newest) {
         return Response.noContent().build();
+    }
+
+    @DELETE
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
+    public BulkDeleteResult bulkDeleteDelete(@NotNull @PathParam("account") String account,
+                                             @QueryParam("bulk-delete") String bulkDelete,
+                                             @HeaderParam("X-Auth-Token") String authToken,
+                                             @Context Request request) throws JsonProcessingException {
+        return bulkDelete(account, bulkDelete, authToken, request);
     }
 
     @POST
