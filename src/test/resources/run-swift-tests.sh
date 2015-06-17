@@ -4,23 +4,7 @@ set -o xtrace
 set -o errexit
 set -o nounset
 
-PROXY_BIN="java -cp target/classes/:./target/swift-proxy-1.1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
-PROXY_PORT="8080"
-TEST_CONF="${PWD}/target/swiftproxy-saio.conf"
-SWIFT=
-PROXY_PID=
-
-function cleanup {
-    if [ "$SWIFT" != "" ]; then
-        sudo docker stop $SWIFT
-        sudo docker rm $SWIFT
-    fi
-    if [ "$PROXY_PID" != "" ]; then
-        kill $PROXY_PID
-    fi
-}
-
-trap cleanup EXIT
+source $(dirname $0)/run-swiftproxy.sh
 
 SWIFT_DOCKER_TESTS=$(echo \
         test.functional.tests:TestContainerPaths \
@@ -112,35 +96,11 @@ SWIFT_TESTS=$(echo \
         test.functional.tests:TestSlo.test_slo_head_the_manifest \
 )
 
-: ${TRAVIS:="false"}
 if [ "$TRAVIS" != "true" ]; then
-    SWIFT=$(sudo docker run -d pbinkley/docker-swift)
-    SWIFT_IP=$(sudo docker inspect  -f '{{ .NetworkSettings.IPAddress }}' $SWIFT)
-    SWIFT_TESTS="$SWIFT_TESTS $SWIFT_DOCKER_TESTS"
     export NOSE_NOCAPTURE=1
     export NOSE_NOLOGCAPTURE=1
-
-    cat > target/swiftproxy-saio.conf <<EOF
-swiftproxy.endpoint=http://127.0.0.1:8080
-
-jclouds.provider=openstack-swift
-jclouds.endpoint=http://${SWIFT_IP}:8080/auth/v1.0
-jclouds.keystone.credential-type=tempAuthCredentials
-jclouds.identity=test:tester
-jclouds.credential=testing
-EOF
-else
-    cat > target/swiftproxy-saio.conf <<EOF
-swiftproxy.endpoint=http://127.0.0.1:8080
-
-jclouds.provider=transient
-jclouds.identity=test:tester
-jclouds.credential=testing
-EOF
+    SWIFT_TESTS="$SWIFT_TESTS $SWIFT_DOCKER_TESTS"
 fi
-
-stdbuf -oL -eL $PROXY_BIN --properties $TEST_CONF &
-PROXY_PID=$!
 
 pushd swift-tests
 
@@ -152,17 +112,8 @@ fi
 ./virtualenv/bin/pip install -r requirements.txt
 ./virtualenv/bin/pip install -r test-requirements.txt
 
-# wait for SwiftProxy to start
-for i in $(seq 30);
-do
-    if exec 3<>"/dev/tcp/localhost/8080";
-    then
-        exec 3<&-  # Close for read
-        exec 3>&-  # Close for write
-        break
-    fi
-    sleep 1
-done
+wait_for_swiftproxy
+
 
 mkdir -p ./virtualenv/etc/swift
 cat > ./virtualenv/etc/swift/test.conf <<EOF
