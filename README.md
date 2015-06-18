@@ -91,9 +91,8 @@ SwiftProxy does not support:
 * object versioning
 * ACLs, container metadata and container syncing
 * object auto delete (`X-Delete-At` or `X-Delete-After`)
-* range get for large objects
-* delete multiple objects
 * HTTPS frontend (Connecting to HTTPS object store is supported)
+* TempURL
 
 Testing
 -------
