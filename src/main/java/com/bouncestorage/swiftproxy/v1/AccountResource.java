@@ -84,15 +84,14 @@ public final class AccountResource extends BlobStoreResource {
                                @HeaderParam("Accept") Optional<String> accept) {
         delimiter.ifPresent(x -> logger.info("delimiter not supported yet"));
 
-        List<ContainerEntry> entries = getBlobStore(authToken).get().list()
+        ArrayList<ContainerEntry> entries = getBlobStore(authToken).get().list()
                 .stream()
                 .map(StorageMetadata::getName)
                 .filter(name -> marker.map(m -> name.compareTo(m) > 0).orElse(true))
                 .filter(name -> endMarker.map(m -> name.compareTo(m) < 0).orElse(true))
                 .filter(name -> prefix.map(name::startsWith).orElse(true))
-                .limit(limit.orElse(Integer.MAX_VALUE))
                 .map(ContainerEntry::new)
-                .collect(Collectors.toList());
+                .collect(Collectors.toCollection(ArrayList::new));
 
         MediaType formatType;
         if (format.isPresent()) {
@@ -103,11 +102,18 @@ public final class AccountResource extends BlobStoreResource {
             formatType = MediaType.TEXT_PLAIN_TYPE;
         }
 
+        long count = entries.size();
+        limit.ifPresent((max) -> {
+            if (entries.size() > max) {
+                entries.subList(max, entries.size()).clear();
+            }
+        });
+
         Account root = new Account();
         root.name = account;
         root.container = entries;
         return output(root, entries, formatType)
-                .header("X-Account-Container-Count", entries.size())
+                .header("X-Account-Container-Count", count)
                 .header("X-Account-Object-Count", -1)
                 .header("X-Account-Bytes-Used", -1)
                 .header("X-Timestamp", -1)
