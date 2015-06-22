@@ -62,7 +62,16 @@ export NOSE_NOCAPTURE=1
 export NOSE_NOLOGCAPTURE=1
 export PYTHONPATH=.
 
-SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v --logging-level=debug
+NOSECMD="stdbuf -oL -eL ./virtualenv/bin/nosetests"
+export SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf
+
+TESTS=$($NOSECMD -v --collect-only |& grep ^tests. | sed -e 's/\.Test/:Test/' | sed -e 's/ \.\.\. ok//' \
+    | grep -v ^tests.functional.test_swiftclient:TestFunctional.test_post_account$ \
+    | grep -v ^tests.functional.test_swiftclient:TestFunctional.test_post_container$ \
+)
+
+
+$NOSECMD -v --logging-level=debug $TESTS
 
 EXIT_CODE=$?
 exit $?
