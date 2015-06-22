@@ -48,6 +48,9 @@ public final class SwiftProxy {
             rc.register(new LoggingFilter(java.util.logging.Logger.getGlobal(), true));
         }
         server = GrizzlyHttpServerFactory.createHttpServer(endpoint, rc, false);
+        server.getListeners().forEach(listener -> {
+            listener.registerAddOn(new ContentLengthAddOn());
+        });
 
         // allow HTTP DELETE to have payload for multi-object delete
         server.getServerConfiguration().setAllowPayloadForUndefinedHttpMethods(true);
