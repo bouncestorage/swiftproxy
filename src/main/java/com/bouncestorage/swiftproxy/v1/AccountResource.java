@@ -84,7 +84,8 @@ public final class AccountResource extends BlobStoreResource {
                                @HeaderParam("Accept") Optional<String> accept) {
         delimiter.ifPresent(x -> logger.info("delimiter not supported yet"));
 
-        ArrayList<ContainerEntry> entries = getBlobStore(authToken).get().list()
+        BlobStore blobStore = getBlobStore(authToken).get();
+        ArrayList<ContainerEntry> entries = blobStore.list()
                 .stream()
                 .map(StorageMetadata::getName)
                 .filter(name -> marker.map(m -> name.compareTo(m) > 0).orElse(true))
@@ -100,6 +101,10 @@ public final class AccountResource extends BlobStoreResource {
             formatType = MediaType.valueOf(accept.get());
         } else {
             formatType = MediaType.TEXT_PLAIN_TYPE;
+        }
+
+        if (blobStore.getContext().unwrap().getId().equals("transient")) {
+            entries.sort((a, b) -> a.getName().compareTo(b.getName()));
         }
 
         long count = entries.size();
