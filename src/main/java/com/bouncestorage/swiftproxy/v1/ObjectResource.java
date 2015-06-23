@@ -30,7 +30,6 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -79,6 +78,7 @@ import com.google.common.collect.PeekingIterator;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import com.google.common.io.BaseEncoding;
 
 import org.apache.commons.io.input.TeeInputStream;
 import org.glassfish.grizzly.http.server.Request;
@@ -698,12 +698,13 @@ public final class ObjectResource extends BlobStoreResource {
         HashCode contentMD5 = null;
         if (eTag != null) {
             try {
-                contentMD5 = HashCode.fromBytes(Base64.getDecoder().decode(eTag));
+                contentMD5 = HashCode.fromBytes(BaseEncoding.base16().lowerCase().decode(eTag));
             } catch (IllegalArgumentException iae) {
-                throw new ClientErrorException(422); // Unprocessable Entity
+                throw new ClientErrorException(422, iae); // Unprocessable Entity
             }
             if (contentMD5.bits() != Hashing.md5().bits()) {
-                throw new ClientErrorException(422); // Unprocessable Entity
+                // Unprocessable Entity
+                throw new ClientErrorException(contentMD5.bits() + " != " + Hashing.md5().bits(), 422);
             }
         }
 
