@@ -139,8 +139,14 @@ public final class ContainerResource extends BlobStoreResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
+        long objectCount = -1;
+        String provider = store.getContext().unwrap().getId();
+        if (provider.equals("transient") || provider.equals("openstack-swift")) {
+            objectCount = store.countBlobs(container);
+        }
+
         return Response.status(Response.Status.NO_CONTENT).entity("")
-                .header("X-Container-Object-Count", 0)
+                .header("X-Container-Object-Count", objectCount)
                 .header("X-Container-Bytes-Used", 0)  // TODO: bogus value
                 .header("X-Versions-Location", "")
                 .header("X-Timestamp", -1)
