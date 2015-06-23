@@ -343,7 +343,7 @@
     </build>
 
     <properties>
-        <jersey.version>2.17</jersey.version>
+        <jersey.version>2.18</jersey.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jclouds.version>2.0.0-SNAPSHOT</jclouds.version>
     </properties>

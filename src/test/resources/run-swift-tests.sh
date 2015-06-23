@@ -73,6 +73,7 @@ SWIFT_TESTS=$(echo \
         test.functional.tests:TestFile.testTooLongName \
         test.functional.tests:TestFile.testZeroByteFile \
         test.functional.tests:TestFile.testEtagResponse \
+        test.functional.tests:TestFile.testChunkedPut \
         test.functional.tests:TestDlo.test_get_manifest \
         test.functional.tests:TestDlo.test_get_manifest_document_itself \
         test.functional.tests:TestDlo.test_get_range \
