@@ -23,6 +23,7 @@ import static com.google.common.base.Throwables.propagate;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -144,12 +145,11 @@ public final class AccountResource extends BlobStoreResource {
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
 
-        BufferedReader in = new BufferedReader(new InputStreamReader(request.getInputStream()));
         String line;
         ArrayList<String> objects = new ArrayList<>();
 
         boolean isTransient = blobStore.getContext().unwrap().getId().equals("transient");
-        try {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(request.getInputStream(), StandardCharsets.UTF_8))) {
             while ((line = in.readLine()) != null) {
                 if (isTransient) {
                     // jclouds does not escape things correctly
