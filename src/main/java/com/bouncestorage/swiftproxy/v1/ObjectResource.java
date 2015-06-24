@@ -109,9 +109,9 @@ public final class ObjectResource extends BlobStoreResource {
             STATIC_OBJECT_MANIFEST
     );
     private static final MediaType MANIFEST_CONTENT_TYPE = MediaType.APPLICATION_JSON_TYPE.withCharset("utf-8");
-    private static final String[] STD_BLOB_HEADERS = {
+    private static final Set<String> STD_BLOB_HEADERS = ImmutableSet.of(
             "Content-Range"
-    };
+    );
 
     private List<Pair<Long, Long>> parseRange(String range) {
         range = range.replaceAll(" ", "").toLowerCase();
