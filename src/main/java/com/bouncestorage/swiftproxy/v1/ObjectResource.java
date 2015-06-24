@@ -156,12 +156,12 @@ public final class ObjectResource extends BlobStoreResource {
         return options;
     }
 
-    private static String unquote(String quoted) {
+    private static String maybeUnquote(String quoted) {
         if (quoted.charAt(0) == '"' && quoted.charAt(quoted.length() - 1) == '"') {
             return quoted.substring(1, quoted.length() - 1);
         }
 
-        throw new IllegalArgumentException(quoted);
+        return quoted;
     }
 
     @GET
@@ -195,10 +195,10 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         if (ifMatch != null) {
-            options.ifETagMatches(unquote(ifMatch));
+            options.ifETagMatches(maybeUnquote(ifMatch));
         }
         if (ifNoneMatch != null) {
-            options.ifETagDoesntMatch(unquote(ifNoneMatch));
+            options.ifETagDoesntMatch(maybeUnquote(ifNoneMatch));
         }
         if (ifModifiedSince != null) {
             options.ifModifiedSince(ifModifiedSince);

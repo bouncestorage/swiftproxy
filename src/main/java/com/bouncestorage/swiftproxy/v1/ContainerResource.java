@@ -57,6 +57,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.DateSerializer;
+import com.google.common.base.Strings;
 
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.StorageMetadata;
@@ -195,7 +196,7 @@ public final class ContainerResource extends BlobStoreResource {
         String prefix;
         String delimiter;
 
-        if (path != null) {
+        if (!Strings.isNullOrEmpty(path)) {
             delimiter = "/";
             prefix = path + "/";
         } else {
@@ -204,15 +205,15 @@ public final class ContainerResource extends BlobStoreResource {
         }
 
         ListContainerOptions options = new ListContainerOptions();
-        if (marker != null) {
+        if (!Strings.isNullOrEmpty(marker)) {
             options.afterMarker(marker);
         }
 
-        if (!(delimiter != null && delimiter.equals("/"))) {
+        if (!"/".equals(delimiter)) {
             options = options.recursive();
         }
 
-        if (prefix != null) {
+        if (!Strings.isNullOrEmpty(prefix)) {
             if (!"/".equals(prefix)) {
                 options.inDirectory(prefix);
             }
