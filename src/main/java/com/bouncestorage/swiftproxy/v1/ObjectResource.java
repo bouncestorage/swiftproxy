@@ -156,6 +156,14 @@ public final class ObjectResource extends BlobStoreResource {
         return options;
     }
 
+    private static String unquote(String quoted) {
+        if (quoted.charAt(0) == '"' && quoted.charAt(quoted.length() - 1) == '"') {
+            return quoted.substring(1, quoted.length() - 1);
+        }
+
+        throw new IllegalArgumentException(quoted);
+    }
+
     @GET
     public Response getObject(@NotNull @PathParam("container") String container,
                               @NotNull @Encoded @PathParam("object") String object,
@@ -187,10 +195,10 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         if (ifMatch != null) {
-            options.ifETagMatches(ifMatch);
+            options.ifETagMatches(unquote(ifMatch));
         }
         if (ifNoneMatch != null) {
-            options.ifETagDoesntMatch(ifNoneMatch);
+            options.ifETagDoesntMatch(unquote(ifNoneMatch));
         }
         if (ifModifiedSince != null) {
             options.ifModifiedSince(ifModifiedSince);
