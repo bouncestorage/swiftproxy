@@ -19,6 +19,9 @@ package com.bouncestorage.swiftproxy;
 import static com.google.common.base.Throwables.propagate;
 
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.jclouds.Constants;
 import org.jclouds.openstack.keystone.v2_0.config.KeystoneProperties;
@@ -26,6 +29,8 @@ import org.jclouds.openstack.swift.v1.blobstore.integration.SwiftBlobIntegration
 import org.junit.AfterClass;
 
 public final class JcloudsIntegrationTest extends SwiftBlobIntegrationLiveTest {
+    protected static final int AWAIT_CONSISTENCY_TIMEOUT_SECONDS = Integer.parseInt(System.getProperty(
+            "test.blobstore.await-consistency-timeout-seconds", "0"));
     private SwiftProxy proxy;
 
     public JcloudsIntegrationTest() throws Exception {
@@ -34,6 +39,11 @@ public final class JcloudsIntegrationTest extends SwiftBlobIntegrationLiveTest {
     @AfterClass
     public void tearDown() {
         proxy.stop();
+    }
+
+    @Override
+    protected void awaitConsistency() {
+        Uninterruptibles.sleepUninterruptibly(AWAIT_CONSISTENCY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     @Override
@@ -51,7 +61,6 @@ public final class JcloudsIntegrationTest extends SwiftBlobIntegrationLiveTest {
         props.setProperty(Constants.PROPERTY_IDENTITY, identity);
         props.setProperty(Constants.PROPERTY_CREDENTIAL, credential);
         props.setProperty(Constants.PROPERTY_ENDPOINT, endpoint);
-        System.setProperty("test.blobstore.await-consistency-timeout-seconds", "0");
         return props;
     }
 }
