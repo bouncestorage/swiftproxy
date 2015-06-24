@@ -752,7 +752,18 @@ public final class ObjectResource extends BlobStoreResource {
                 builder.contentMD5(contentMD5);
             }
             try {
-                String remoteETag = blobStore.putBlob(container, builder.build());
+                String remoteETag;
+                try {
+                    remoteETag = blobStore.putBlob(container, builder.build());
+                } catch (HttpResponseException e) {
+                    if (e.getCause() instanceof IOException) {
+                        String message = e.getCause().getMessage();
+                        if (message != null && message.startsWith("MD5 hash code mismatch")) {
+                            throw new ClientErrorException(message, 422, e.getCause());
+                        }
+                    }
+                    throw e;
+                }
                 BlobMetadata meta = blobStore.blobMetadata(container, objectName);
                 return Response.status(Response.Status.CREATED).header(HttpHeaders.ETAG, remoteETag)
                         .header(HttpHeaders.LAST_MODIFIED, meta.getLastModified())
