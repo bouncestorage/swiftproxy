@@ -4,7 +4,9 @@ set -o xtrace
 set -o errexit
 set -o nounset
 
-PROXY_BIN="java -cp target/classes/:./target/swift-proxy-1.1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
+DEBUG="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+
+PROXY_BIN="java $DEBUG -cp target/classes/:./target/swift-proxy-1.1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
 PROXY_PORT="8080"
 TEST_CONF="${PWD}/target/swiftproxy-saio.conf"
 DOCKER=
