@@ -16,18 +16,11 @@
 
 package com.bouncestorage.swiftproxy;
 
-import static java.util.Objects.requireNonNull;
-
-import java.io.IOException;
-
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.glassfish.grizzly.filterchain.FilterChain;
 import org.glassfish.grizzly.filterchain.FilterChainBuilder;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
-import org.glassfish.grizzly.filterchain.FilterChainEvent;
-import org.glassfish.grizzly.filterchain.NextAction;
 import org.glassfish.grizzly.http.HttpHeader;
 import org.glassfish.grizzly.http.HttpResponsePacket;
 import org.glassfish.grizzly.http.HttpServerFilter;
@@ -49,10 +42,8 @@ public final class ContentLengthAddOn implements AddOn {
     }
 
     private static class ContentLengthFilter extends HttpServerFilter {
-        private HttpServerFilter delegate;
-
-        ContentLengthFilter(HttpServerFilter delegate) {
-            this.delegate = requireNonNull(delegate);
+        ContentLengthFilter(HttpServerFilter original) {
+            setAllowPayloadForUndefinedHttpMethods(original.isAllowPayloadForUndefinedHttpMethods());
         }
 
         @Override
@@ -66,56 +57,6 @@ public final class ContentLengthAddOn implements AddOn {
                     response.getHeaders().setValue("Content-Type").setString(MediaType.TEXT_PLAIN);
                 }
             }
-        }
-
-        @Override
-        public void onAdded(FilterChain filterChain) {
-            delegate.onAdded(filterChain);
-        }
-
-        @Override
-        public void onRemoved(FilterChain filterChain) {
-            delegate.onRemoved(filterChain);
-        }
-
-        @Override
-        public void onFilterChainChanged(FilterChain filterChain) {
-            delegate.onFilterChainChanged(filterChain);
-        }
-
-        @Override
-        public NextAction handleRead(FilterChainContext filterChainContext) throws IOException {
-            return delegate.handleRead(filterChainContext);
-        }
-
-        @Override
-        public NextAction handleWrite(FilterChainContext filterChainContext) throws IOException {
-            return delegate.handleWrite(filterChainContext);
-        }
-
-        @Override
-        public NextAction handleConnect(FilterChainContext filterChainContext) throws IOException {
-            return delegate.handleConnect(filterChainContext);
-        }
-
-        @Override
-        public NextAction handleAccept(FilterChainContext filterChainContext) throws IOException {
-            return delegate.handleAccept(filterChainContext);
-        }
-
-        @Override
-        public NextAction handleEvent(FilterChainContext filterChainContext, FilterChainEvent filterChainEvent) throws IOException {
-            return delegate.handleEvent(filterChainContext, filterChainEvent);
-        }
-
-        @Override
-        public NextAction handleClose(FilterChainContext filterChainContext) throws IOException {
-            return delegate.handleClose(filterChainContext);
-        }
-
-        @Override
-        public void exceptionOccurred(FilterChainContext filterChainContext, Throwable throwable) {
-            delegate.exceptionOccurred(filterChainContext, throwable);
         }
     }
 }
