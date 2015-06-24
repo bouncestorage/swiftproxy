@@ -74,6 +74,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
@@ -108,6 +109,9 @@ public final class ObjectResource extends BlobStoreResource {
             STATIC_OBJECT_MANIFEST
     );
     private static final MediaType MANIFEST_CONTENT_TYPE = MediaType.APPLICATION_JSON_TYPE.withCharset("utf-8");
+    private static final String[] STD_BLOB_HEADERS = {
+            "Content-Range"
+    };
 
     private List<Pair<Long, Long>> parseRange(String range) {
         range = range.replaceAll(" ", "").toLowerCase();
@@ -198,6 +202,18 @@ public final class ObjectResource extends BlobStoreResource {
         return getObject(blobStore, container, object, options, ranges, "get".equals(multiPartManifest));
     }
 
+    private Map<String, Object> blobGetStandardHeaders(Blob blob) {
+        ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
+        Multimap<String, String> headers = blob.getAllHeaders();
+        for (String h : STD_BLOB_HEADERS) {
+            if (headers.containsKey(h)) {
+                builder.put(h, headers.get(h).iterator().next());
+            }
+        }
+
+        return builder.build();
+    }
+
     private Response getObject(BlobStore blobStore, String container, String object, GetOptions options,
                                List<Pair<Long, Long>> ranges, boolean multiPartManifest) {
         Blob blob = null;
@@ -248,7 +264,7 @@ public final class ObjectResource extends BlobStoreResource {
             return addObjectHeaders(Response.ok(blob.getPayload().openStream()), meta,
                     isMultiPartManifest ?
                             Optional.of(ImmutableMap.of(HttpHeaders.CONTENT_TYPE, MANIFEST_CONTENT_TYPE)) :
-                            Optional.empty())
+                            Optional.of(blobGetStandardHeaders(blob)))
                     .build();
         } catch (IOException e) {
             throw propagate(e);
@@ -851,10 +867,6 @@ public final class ObjectResource extends BlobStoreResource {
         });
 
         return responseBuilder;
-    }
-
-    private Response.ResponseBuilder addObjectHeaders(Response.ResponseBuilder responseBuilder, BlobMetadata metaData) {
-        return addObjectHeaders(responseBuilder, metaData, Optional.empty());
     }
 
     private class HttpRangeInputStream extends InputStream {
