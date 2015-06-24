@@ -4,14 +4,6 @@ set -o xtrace
 set -o errexit
 set -o nounset
 
-DEBUG="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
-
-PROXY_BIN="java $DEBUG -cp target/classes/:./target/swift-proxy-1.1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
-PROXY_PORT="8080"
-TEST_CONF="${PWD}/target/swiftproxy-saio.conf"
-DOCKER=
-PROXY_PID=
-
 function cleanup {
     if [ "$DOCKER" != "" ]; then
         sudo docker stop $DOCKER
@@ -30,6 +22,7 @@ if [ "$TRAVIS" != "true" ]; then
     DOCKER_IP=$(sudo docker inspect  -f '{{ .NetworkSettings.IPAddress }}' $DOCKER)
     export NOSE_NOCAPTURE=1
     export NOSE_NOLOGCAPTURE=1
+    DEBUG="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
 
     cat > target/swiftproxy-saio.conf <<EOF
 swiftproxy.endpoint=http://127.0.0.1:8080
@@ -41,6 +34,8 @@ jclouds.identity=test:tester
 jclouds.credential=testing
 EOF
 else
+    DEBUG=
+
     cat > target/swiftproxy-saio.conf <<EOF
 swiftproxy.endpoint=http://127.0.0.1:8080
 
@@ -49,6 +44,15 @@ jclouds.identity=test:tester
 jclouds.credential=testing
 EOF
 fi
+
+
+PROXY_BIN="java $DEBUG -cp target/classes/:./target/swift-proxy-1.1.0-SNAPSHOT-jar-with-dependencies.jar com.bouncestorage.swiftproxy.Main"
+PROXY_PORT="8080"
+TEST_CONF="${PWD}/target/swiftproxy-saio.conf"
+DOCKER=
+PROXY_PID=
+
+
 
 stdbuf -oL -eL $PROXY_BIN --properties $TEST_CONF &
 PROXY_PID=$!
