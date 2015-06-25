@@ -26,6 +26,7 @@
 
   <logger name="org.glassfish.grizzly.http.server" level="${GRIZZLY_LOG_LEVEL:-warn}" />
   <logger name="org.jclouds.blobstore.config.LocalBlobStore" level="info" />
+  <logger name="jclouds.wire" level="info" />
 
   <root level="${LOG_LEVEL:-debug}">
     <appender-ref ref="STDOUT" />

@@ -74,6 +74,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
@@ -92,6 +93,7 @@ import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.jclouds.blobstore.options.GetOptions;
 import org.jclouds.blobstore.options.ListContainerOptions;
+import org.jclouds.http.HttpResponse;
 import org.jclouds.http.HttpResponseException;
 import org.jclouds.io.ContentMetadata;
 import org.jclouds.io.MutableContentMetadata;
@@ -108,6 +110,9 @@ public final class ObjectResource extends BlobStoreResource {
             STATIC_OBJECT_MANIFEST
     );
     private static final MediaType MANIFEST_CONTENT_TYPE = MediaType.APPLICATION_JSON_TYPE.withCharset("utf-8");
+    private static final Set<String> STD_BLOB_HEADERS = ImmutableSet.of(
+            "Content-Range"
+    );
 
     private List<Pair<Long, Long>> parseRange(String range) {
         range = range.replaceAll(" ", "").toLowerCase();
@@ -152,6 +157,14 @@ public final class ObjectResource extends BlobStoreResource {
         return options;
     }
 
+    private static String maybeUnquote(String quoted) {
+        if (quoted.startsWith("\"") && quoted.endsWith("\"")) {
+            return quoted.substring(1, quoted.length() - 1);
+        }
+
+        return quoted;
+    }
+
     @GET
     public Response getObject(@NotNull @PathParam("container") String container,
                               @NotNull @Encoded @PathParam("object") String object,
@@ -183,10 +196,10 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         if (ifMatch != null) {
-            options.ifETagMatches(ifMatch);
+            options.ifETagMatches(maybeUnquote(ifMatch));
         }
         if (ifNoneMatch != null) {
-            options.ifETagDoesntMatch(ifNoneMatch);
+            options.ifETagDoesntMatch(maybeUnquote(ifNoneMatch));
         }
         if (ifModifiedSince != null) {
             options.ifModifiedSince(ifModifiedSince);
@@ -196,6 +209,18 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         return getObject(blobStore, container, object, options, ranges, "get".equals(multiPartManifest));
+    }
+
+    private Map<String, Object> blobGetStandardHeaders(Blob blob) {
+        ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
+        Multimap<String, String> headers = blob.getAllHeaders();
+        for (String h : STD_BLOB_HEADERS) {
+            if (headers.containsKey(h)) {
+                builder.put(h, headers.get(h).iterator().next());
+            }
+        }
+
+        return builder.build();
     }
 
     private Response getObject(BlobStore blobStore, String container, String object, GetOptions options,
@@ -248,7 +273,7 @@ public final class ObjectResource extends BlobStoreResource {
             return addObjectHeaders(Response.ok(blob.getPayload().openStream()), meta,
                     isMultiPartManifest ?
                             Optional.of(ImmutableMap.of(HttpHeaders.CONTENT_TYPE, MANIFEST_CONTENT_TYPE)) :
-                            Optional.empty())
+                            Optional.of(blobGetStandardHeaders(blob)))
                     .build();
         } catch (IOException e) {
             throw propagate(e);
@@ -728,7 +753,20 @@ public final class ObjectResource extends BlobStoreResource {
                 builder.contentMD5(contentMD5);
             }
             try {
-                String remoteETag = blobStore.putBlob(container, builder.build());
+                String remoteETag;
+                try {
+                    remoteETag = blobStore.putBlob(container, builder.build());
+                } catch (HttpResponseException e) {
+                    HttpResponse response = e.getResponse();
+                    int code = response.getStatusCode();
+
+                    if (code == 400) {
+                        // swift expects 422 for md5 mismatch
+                        throw new ClientErrorException(response.getStatusLine(), 422, e.getCause());
+                    } else {
+                        throw new ClientErrorException(response.getStatusLine(), code, e.getCause());
+                    }
+                }
                 BlobMetadata meta = blobStore.blobMetadata(container, objectName);
                 return Response.status(Response.Status.CREATED).header(HttpHeaders.ETAG, remoteETag)
                         .header(HttpHeaders.LAST_MODIFIED, meta.getLastModified())
@@ -851,10 +889,6 @@ public final class ObjectResource extends BlobStoreResource {
         });
 
         return responseBuilder;
-    }
-
-    private Response.ResponseBuilder addObjectHeaders(Response.ResponseBuilder responseBuilder, BlobMetadata metaData) {
-        return addObjectHeaders(responseBuilder, metaData, Optional.empty());
     }
 
     private class HttpRangeInputStream extends InputStream {

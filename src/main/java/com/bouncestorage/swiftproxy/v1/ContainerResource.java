@@ -57,6 +57,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.DateSerializer;
+import com.google.common.base.Strings;
 
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.StorageMetadata;
@@ -139,8 +140,14 @@ public final class ContainerResource extends BlobStoreResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
+        long objectCount = -1;
+        String provider = store.getContext().unwrap().getId();
+        if (provider.equals("transient") || provider.equals("openstack-swift")) {
+            objectCount = store.countBlobs(container);
+        }
+
         return Response.status(Response.Status.NO_CONTENT).entity("")
-                .header("X-Container-Object-Count", 0)
+                .header("X-Container-Object-Count", objectCount)
                 .header("X-Container-Bytes-Used", 0)  // TODO: bogus value
                 .header("X-Versions-Location", "")
                 .header("X-Timestamp", -1)
@@ -189,7 +196,7 @@ public final class ContainerResource extends BlobStoreResource {
         String prefix;
         String delimiter;
 
-        if (path != null) {
+        if (!Strings.isNullOrEmpty(path)) {
             delimiter = "/";
             prefix = path + "/";
         } else {
@@ -198,15 +205,15 @@ public final class ContainerResource extends BlobStoreResource {
         }
 
         ListContainerOptions options = new ListContainerOptions();
-        if (marker != null) {
+        if (!Strings.isNullOrEmpty(marker)) {
             options.afterMarker(marker);
         }
 
-        if (!(delimiter != null && delimiter.equals("/"))) {
+        if (!"/".equals(delimiter)) {
             options = options.recursive();
         }
 
-        if (prefix != null) {
+        if (!Strings.isNullOrEmpty(prefix)) {
             if (!"/".equals(prefix)) {
                 options.inDirectory(prefix);
             }
