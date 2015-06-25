@@ -103,15 +103,13 @@ if [ "$TRAVIS" != "true" ]; then
     SWIFT_TESTS="$SWIFT_TESTS $SWIFT_DOCKER_TESTS"
 fi
 
-pushd swift-tests
-
 mkdir -p virtualenv
 if [ ! -e ./virtualenv/bin/pip ]; then
     virtualenv --no-site-packages --distribute virtualenv
 fi
 
-./virtualenv/bin/pip install -r requirements.txt
-./virtualenv/bin/pip install -r test-requirements.txt
+./virtualenv/bin/pip install -r swift-tests/requirements.txt
+./virtualenv/bin/pip install -r swift-tests/test-requirements.txt
 
 wait_for_swiftproxy
 
@@ -160,13 +158,15 @@ EOF
 
 export PYTHONUNBUFFERED=1
 
+pushd swift-tests
+
 if [ $# == 0 ]; then
     SWIFT_TESTS=$(echo $SWIFT_TESTS | tr ' ' '\n' | sort)
-    SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v \
+    SWIFT_TEST_CONFIG_FILE=../virtualenv/etc/swift/test.conf stdbuf -oL -eL ../virtualenv/bin/nosetests -v \
         $SWIFT_TESTS
 
 else
-    SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf stdbuf -oL -eL ./virtualenv/bin/nosetests -v $@
+    SWIFT_TEST_CONFIG_FILE=../virtualenv/etc/swift/test.conf stdbuf -oL -eL ../virtualenv/bin/nosetests -v $@
 fi
 
 EXIT_CODE=$?

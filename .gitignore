@@ -1,7 +1,7 @@
 swift-proxy.iml
 .idea/
 target/
-
+virtualenv/
 *~
 
 # below is default github .ignore for java
