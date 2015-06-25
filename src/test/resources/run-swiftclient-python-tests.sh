@@ -7,15 +7,13 @@ set -o nounset
 source $(dirname $0)/run-swiftproxy.sh
 
 
-pushd swiftclient-tests
-
 mkdir -p virtualenv
 if [ ! -e ./virtualenv/bin/pip ]; then
     virtualenv --no-site-packages --distribute virtualenv
 fi
 
-./virtualenv/bin/pip install -r requirements.txt
-./virtualenv/bin/pip install -r test-requirements.txt
+./virtualenv/bin/pip install -r swiftclient-tests/requirements.txt
+./virtualenv/bin/pip install -r swiftclient-tests/test-requirements.txt
 ./virtualenv/bin/pip install nose
 
 wait_for_swiftproxy
@@ -62,8 +60,10 @@ export NOSE_NOCAPTURE=1
 export NOSE_NOLOGCAPTURE=1
 export PYTHONPATH=.
 
-NOSECMD="stdbuf -oL -eL ./virtualenv/bin/nosetests"
-export SWIFT_TEST_CONFIG_FILE=./virtualenv/etc/swift/test.conf
+NOSECMD="stdbuf -oL -eL ../virtualenv/bin/nosetests"
+export SWIFT_TEST_CONFIG_FILE=../virtualenv/etc/swift/test.conf
+
+pushd swiftclient-tests
 
 TESTS=$($NOSECMD -v --collect-only |& grep ^tests. | sed -e 's/\.Test/:Test/' | sed -e 's/ \.\.\. ok//' \
     | grep -v ^tests.functional.test_swiftclient:TestFunctional.test_post_account$ \
