@@ -98,7 +98,6 @@ import org.jclouds.http.HttpResponseException;
 import org.jclouds.io.ContentMetadata;
 import org.jclouds.io.MutableContentMetadata;
 import org.jclouds.io.payloads.InputStreamPayload;
-import org.jclouds.openstack.swift.v1.CopyObjectException;
 
 @Path("/v1/{account}/{container}/{object:.*}")
 public final class ObjectResource extends BlobStoreResource {
@@ -450,7 +449,7 @@ public final class ObjectResource extends BlobStoreResource {
                                   String destObject, CopyOptions options) {
         try {
             return blobStore.copyBlob(container, objectName, destContainer, destObject, options);
-        } catch (CopyObjectException e) {
+        } catch (RuntimeException e) {
             if (e.getCause() instanceof HttpResponseException) {
                 throw (HttpResponseException) e.getCause();
             } else {
