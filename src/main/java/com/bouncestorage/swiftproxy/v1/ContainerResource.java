@@ -157,23 +157,10 @@ public final class ContainerResource extends BlobStoreResource {
     }
 
     private String contentType(StorageMetadata meta) {
-        return metaGetName(meta).endsWith("/") ? "application/directory" : MediaType.APPLICATION_OCTET_STREAM;
-        //return "application/directory";
-    }
-
-    private boolean delimFilter(String key, String delimiter) {
-        if (delimiter == null) {
-            return true;
+        if (meta.getType().equals(StorageType.RELATIVE_PATH) || meta.getName().endsWith("/")) {
+            return "application/directory";
         }
-        key = key.substring(delimiter.length());
-        int idx = key.indexOf(delimiter);
-        return idx == -1 || idx == key.length() - delimiter.length();
-    }
-
-    private static String metaGetName(StorageMetadata meta) {
-        return meta.getType() == StorageType.RELATIVE_PATH ?
-                (meta.getName().endsWith("/") ? meta.getName() : meta.getName() + "/") :
-                meta.getName();
+        return MediaType.APPLICATION_OCTET_STREAM;
     }
 
     @GET
@@ -193,33 +180,33 @@ public final class ContainerResource extends BlobStoreResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
-        String prefix;
-        String delimiter;
-
-        if (!Strings.isNullOrEmpty(path)) {
-            delimiter = "/";
-            prefix = path + "/";
-        } else {
-            prefix = prefixParam;
-            delimiter = delimiterParam;
-        }
-
         ListContainerOptions options = new ListContainerOptions();
         if (!Strings.isNullOrEmpty(marker)) {
             options.afterMarker(marker);
         }
 
-        if (!"/".equals(delimiter)) {
-            options = options.recursive();
+        if (Strings.isNullOrEmpty(delimiterParam) && path == null) {
+            options.recursive();
         }
 
-        if (!Strings.isNullOrEmpty(prefix)) {
-            if (!"/".equals(prefix)) {
-                options.inDirectory(prefix);
+        if (!Strings.isNullOrEmpty(delimiterParam)) {
+            options.delimiter(delimiterParam);
+        }
+
+        if (!Strings.isNullOrEmpty(prefixParam)) {
+            options.prefix(prefixParam);
+        }
+
+        if (path != null) {
+            if (path.equals("/")) {
+                options.prefix("/");
+                options.delimiter("/");
+            } else {
+                options.inDirectory(path);
             }
         }
 
-        logger.info("list: {} marker={} prefix={}", options, options.getMarker(), prefix);
+        logger.info("list: {} marker={} prefix={}", options, options.getMarker(), prefixParam);
         List<ObjectEntry> entries = StreamSupport.stream(
                 Utils.crawlBlobStore(store, container, options).spliterator(), false)
                 .peek(meta -> logger.info("meta: {}", meta))
@@ -227,7 +214,7 @@ public final class ContainerResource extends BlobStoreResource {
                 //.filter(meta -> delimFilter(meta.getName(), delim_filter))
                 .filter(meta -> endMarker == null || meta.getName().compareTo(endMarker) < 0)
                 .limit(limit == null ? InfoResource.CONFIG.swift.container_listing_limit : limit)
-                .map(meta -> new ObjectEntry(metaGetName(meta), meta.getETag(),
+                .map(meta -> new ObjectEntry(meta.getName(), meta.getETag(),
                         meta.getSize() == null ? 0 : meta.getSize(),
                         contentType(meta), meta.getLastModified()))
                 .collect(Collectors.toList());
