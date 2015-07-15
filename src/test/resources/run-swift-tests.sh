@@ -108,6 +108,12 @@ if [ ! -e ./virtualenv/bin/pip ]; then
     virtualenv --no-site-packages --distribute virtualenv
 fi
 
+# avoid pip bugs
+./virtualenv/bin/pip install --upgrade pip
+
+# work-around change in pip 1.5
+./virtualenv/bin/pip install setuptools --no-use-wheel --upgrade
+
 ./virtualenv/bin/pip install -r swift-tests/requirements.txt
 ./virtualenv/bin/pip install -r swift-tests/test-requirements.txt
 
