@@ -9,8 +9,6 @@ source $(dirname $0)/run-swiftproxy.sh
 SWIFT_DOCKER_TESTS=$(echo \
         test.functional.tests:TestContainerPaths \
         test.functional.tests:TestFile.testCopyAccount \
-        test.functional.tests:TestFile.testMetadataNumberLimit \
-        test.functional.tests:TestFile.testMetadataLengthLimits \
         test.functional.tests:TestFileComparison \
         test.functional.tests:TestSlo.test_slo_copy_account \
         test.functional.tests:TestSlo.test_slo_copy_the_manifest_account \
