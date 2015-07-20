@@ -759,7 +759,7 @@ public final class ObjectResource extends BlobStoreResource {
                     HttpResponse response = e.getResponse();
                     int code = response.getStatusCode();
 
-                    if (code == 400) {
+                    if (code == 400 && !"openstack-swift".equals(blobStore.getContext().unwrap().getId())) {
                         // swift expects 422 for md5 mismatch
                         throw new ClientErrorException(response.getStatusLine(), 422, e.getCause());
                     } else {
