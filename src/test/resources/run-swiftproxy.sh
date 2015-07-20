@@ -1,5 +1,30 @@
 #!/bin/bash
 
+: ${SKIP_PROXY:="0"}
+: ${TRAVIS:="false"}
+
+function wait_for_swiftproxy
+{
+
+    for i in $(seq 30);
+    do
+        if exec 3<>"/dev/tcp/localhost/8080";
+        then
+            exec 3<&-  # Close for read
+            exec 3>&-  # Close for write
+            return
+        fi
+        sleep 1
+    done
+
+    # we didn't start correctly
+    exit
+}
+
+if [ "$SKIP_PROXY" = "1" ]; then
+    return
+fi
+
 set -o xtrace
 set -o errexit
 set -o nounset
@@ -16,7 +41,6 @@ function cleanup {
 
 trap cleanup EXIT
 
-: ${TRAVIS:="false"}
 if [ "$TRAVIS" != "true" ]; then
     DOCKER=$(sudo docker run -d pbinkley/docker-swift)
     DOCKER_IP=$(sudo docker inspect  -f '{{ .NetworkSettings.IPAddress }}' $DOCKER)
@@ -56,20 +80,3 @@ if [ $(basename $0) = "run-swiftproxy.sh" ]; then
     PROXY_PID=
 fi
 
-function wait_for_swiftproxy
-{
-
-    for i in $(seq 30);
-    do
-        if exec 3<>"/dev/tcp/localhost/8080";
-        then
-            exec 3<&-  # Close for read
-            exec 3>&-  # Close for write
-            return
-        fi
-        sleep 1
-    done
-
-    # we didn't start correctly
-    exit
-}

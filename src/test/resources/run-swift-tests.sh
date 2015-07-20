@@ -6,6 +6,8 @@ set -o nounset
 
 source $(dirname $0)/run-swiftproxy.sh
 
+: ${SKIP_TESTS:=""}
+
 SWIFT_DOCKER_TESTS=$(echo \
         test.functional.tests:TestContainerPaths \
         test.functional.tests:TestFile.testCopyAccount \
@@ -168,6 +170,9 @@ pushd swift-tests
 
 if [ $# == 0 ]; then
     SWIFT_TESTS=$(echo $SWIFT_TESTS | tr ' ' '\n' | sort)
+    if [ "$SKIP_TESTS" != "" ]; then
+        SWIFT_TESTS=$(echo $SWIFT_TESTS | tr ' ' '\n' | grep -v $SKIP_TESTS)
+    fi
     SWIFT_TEST_CONFIG_FILE=../virtualenv/etc/swift/test.conf stdbuf -oL -eL ../virtualenv/bin/nosetests -v \
         $SWIFT_TESTS
 
