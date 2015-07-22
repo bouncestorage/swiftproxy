@@ -42,7 +42,7 @@ function cleanup {
 trap cleanup EXIT
 
 if [ "$TRAVIS" != "true" ]; then
-    DOCKER=$(sudo docker run -d pbinkley/docker-swift)
+    DOCKER=$(sudo docker run -d kahing/docker-swift)
     DOCKER_IP=$(sudo docker inspect  -f '{{ .NetworkSettings.IPAddress }}' $DOCKER)
     export NOSE_NOCAPTURE=1
     export NOSE_NOLOGCAPTURE=1
