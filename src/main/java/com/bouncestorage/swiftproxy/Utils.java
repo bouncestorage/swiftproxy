@@ -16,18 +16,15 @@
 
 package com.bouncestorage.swiftproxy;
 
-import static java.util.Objects.requireNonNull;
-
-import static com.google.common.base.Throwables.propagate;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.Callable;
 
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Module;
 
@@ -40,8 +37,6 @@ import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.domain.StorageType;
 import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class Utils {
     private Utils() {
@@ -80,45 +75,40 @@ public final class Utils {
 
     private static class CrawlBlobStoreIterable
             implements Iterable<StorageMetadata> {
-        private final Callable<Iterator<StorageMetadata>> iteratorCallable;
-
-        CrawlBlobStoreIterable(BlobStore blobStore) {
-            iteratorCallable = () -> new CrawlBlobStoreIterator(blobStore);
-        }
+        private final BlobStore blobStore;
+        private final String containerName;
+        private final ListContainerOptions options;
 
         CrawlBlobStoreIterable(BlobStore blobStore, String containerName,
-                ListContainerOptions options) {
-            iteratorCallable = () -> new CrawlBlobStoreIterator(blobStore, containerName, options);
+                               ListContainerOptions options) {
+            this.blobStore = Objects.requireNonNull(blobStore);
+            this.containerName = Objects.requireNonNull(containerName);
+            this.options = Objects.requireNonNull(options).clone();
         }
 
         @Override
         public Iterator<StorageMetadata> iterator() {
-            try {
-                return iteratorCallable.call();
-            } catch (Exception e) {
-                throw propagate(e);
-            }
+            return new CrawlBlobStoreIterator(blobStore, containerName,
+                    options);
         }
     }
 
     private static class CrawlBlobStoreIterator
-            implements Iterator<StorageMetadata> {
-        private Logger logger = LoggerFactory.getLogger(CrawlBlobStoreIterator.class);
+            extends AbstractIterator<StorageMetadata> {
+        private final BlobStore blobStore;
+        private final String containerName;
         private final ListContainerOptions options;
         private Iterator<? extends StorageMetadata> iterator;
         private String marker;
-        private final Callable<PageSet<? extends StorageMetadata>> nextPage;
-
-        CrawlBlobStoreIterator(BlobStore blobStore) {
-            options = ListContainerOptions.NONE;
-            nextPage = () -> blobStore.list();
-            advance();
-        }
 
         CrawlBlobStoreIterator(BlobStore blobStore, String containerName,
-                ListContainerOptions options) {
-            this.options = requireNonNull(options);
-            nextPage = () -> blobStore.list(containerName, options);
+                               ListContainerOptions options) {
+            this.blobStore = Objects.requireNonNull(blobStore);
+            this.containerName = Objects.requireNonNull(containerName);
+            this.options = Objects.requireNonNull(options);
+            if (options.getDelimiter() == null && options.getDir() == null) {
+                this.options.recursive();
+            }
             advance();
         }
 
@@ -126,41 +116,35 @@ public final class Utils {
             if (marker != null) {
                 options.afterMarker(marker);
             }
-            try {
-                PageSet<? extends StorageMetadata> set = nextPage.call();
-                logger.info("LIST opt={} res={}", options, set.size());
-                marker = set.getNextMarker();
-                iterator = set.iterator();
-            } catch (Exception e) {
-                throw propagate(e);
-            }
+            PageSet<? extends StorageMetadata> set = blobStore.list(
+                    containerName, options);
+            marker = set.getNextMarker();
+            iterator = set.iterator();
         }
 
         @Override
-        public boolean hasNext() {
-            if (iterator.hasNext()) {
-                return true;
-            }
-            if (marker != null) {
-                advance();
-            }
-            return iterator.hasNext();
-        }
-
-        @Override
-        public StorageMetadata next() {
+        protected StorageMetadata computeNext() {
             while (true) {
                 if (!iterator.hasNext()) {
+                    if (marker == null) {
+                        return endOfData();
+                    }
                     advance();
-                }
-                StorageMetadata metadata = iterator.next();
-                // filter out folders with atmos and filesystem providers
-                if (metadata.getType() == StorageType.FOLDER) {
                     continue;
                 }
-                return metadata;
+                try {
+                    StorageMetadata metadata = iterator.next();
+                    // filter out folders with atmos and filesystem providers
+                    if (metadata.getType() == StorageType.FOLDER) {
+                        continue;
+                    }
+                    return metadata;
+                } catch (NullPointerException e) {
+                    NullPointerException e2 = new NullPointerException("marker " + marker);
+                    e2.initCause(e);
+                    throw e2;
+                }
             }
         }
     }
-
 }
