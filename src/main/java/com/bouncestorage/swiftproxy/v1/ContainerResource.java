@@ -60,6 +60,7 @@ import com.fasterxml.jackson.databind.ser.std.DateSerializer;
 import com.google.common.base.Strings;
 
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.domain.BlobMetadata;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.domain.StorageType;
 import org.jclouds.blobstore.options.ListContainerOptions;
@@ -157,6 +158,12 @@ public final class ContainerResource extends BlobStoreResource {
     }
 
     private String contentType(StorageMetadata meta) {
+        if (meta instanceof BlobMetadata) {
+            String contentType = ((BlobMetadata) meta).getContentMetadata().getContentType();
+            if (contentType != null && !contentType.isEmpty()) {
+                return contentType;
+            }
+        }
         if (meta.getType().equals(StorageType.RELATIVE_PATH) || meta.getName().endsWith("/")) {
             return "application/directory";
         }

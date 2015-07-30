@@ -374,15 +374,6 @@ public final class ObjectResource extends BlobStoreResource {
         return objectName;
     }
 
-    private static String contentType(String contentType) {
-        // workaround the stupidity in jclouds where it always strip trailing / from
-        // blob name listings. this allows us to detect that it's happened
-        if ("application/directory".equals(contentType)) {
-            return "application/x-directory";
-        }
-        return contentType;
-    }
-
     private Map<String, String> getUserMetadata(Request request) {
         return StreamSupport.stream(request.getHeaderNames().spliterator(), false)
                 .filter(name -> name.toLowerCase().startsWith(META_HEADER_PREFIX.toLowerCase()))
@@ -743,7 +734,7 @@ public final class ObjectResource extends BlobStoreResource {
                 builder.contentEncoding(contentEncoding);
             }
             if (contentType != null) {
-                builder.contentType(contentType(contentType.toString()));
+                builder.contentType(contentType.toString());
             }
             if (contentLengthParam != null) {
                 builder.contentLength(contentLength);
