@@ -333,14 +333,12 @@ public final class ObjectResource extends BlobStoreResource {
         /* jclouds doesn't really support prefixed listing, so faking it with marker */
         ListContainerOptions listOptions = new ListContainerOptions()
                 .recursive()
-                .prefix(objectsPrefix)
-                .withDetails();
+                .prefix(objectsPrefix);
         logger.debug("dlo prefix: {}", objectsPrefix);
         Iterable<StorageMetadata> res = Utils.crawlBlobStore(blobStore, dloContainer, listOptions);
 
         List<ManifestEntry> segments = new ArrayList<>();
         for (StorageMetadata sm : res) {
-            logger.debug("dlo entry: {}", sm.getName());
             if (sm.getName().startsWith(objectsPrefix)) {
                 ManifestEntry entry = new ManifestEntry();
                 entry.container = dloContainer;
@@ -353,9 +351,10 @@ public final class ObjectResource extends BlobStoreResource {
                         String.format("list object %s from prefix %s", sm.getName(), objectsPrefix));
             }
         }
+
+        segments.forEach(e -> logger.debug("sub-object: {}", e));
         Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(segments);
         logger.debug("getting SLO object: {}", sizeAndEtag);
-        segments.forEach(e -> logger.debug("sub-object: {}", e));
 
         InputStream combined = new ManifestObjectInputStream(blobStore, segments);
         long size = sizeAndEtag.getFirst();
