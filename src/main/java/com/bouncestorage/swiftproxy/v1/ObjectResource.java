@@ -623,12 +623,21 @@ public final class ObjectResource extends BlobStoreResource {
     private void validateManifest(ManifestEntry[] res, BlobStore blobStore) {
         Arrays.stream(res).parallel()
                 .forEach(s -> {
-                    Response r = getObject(blobStore, s.container, s.object, GetOptions.NONE, null, false);
-                    if (!r.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
-                        throw new ClientErrorException(Response.Status.CONFLICT);
+                    BlobMetadata metadata = blobStore.blobMetadata(s.container, s.object);
+                    long size;
+                    String etag;
+                    if (metadata.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST) ||
+                            metadata.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
+                        Response r = getObject(blobStore, s.container, s.object, GetOptions.NONE, null, false);
+                        if (!r.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
+                            throw new ClientErrorException(Response.Status.CONFLICT);
+                        }
+                        size = Long.parseLong(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
+                        etag = r.getHeaderString(HttpHeaders.ETAG);
+                    } else {
+                        size = metadata.getSize();
+                        etag = metadata.getETag();
                     }
-                    long size = Long.parseLong(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
-                    String etag = r.getHeaderString(HttpHeaders.ETAG);
                     if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
                         etag = etag.substring(1, etag.length() - 1);
                     }
