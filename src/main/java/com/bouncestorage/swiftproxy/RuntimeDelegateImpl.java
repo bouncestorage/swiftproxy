@@ -19,6 +19,7 @@ package com.bouncestorage.swiftproxy;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
+import java.util.Objects;
 
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.Link;
@@ -77,6 +78,22 @@ public final class RuntimeDelegateImpl extends RuntimeDelegate {
 
         InvalidMediaType(String type) {
             this.type = requireNonNull(type);
+        }
+
+        public boolean equals(Object object) {
+            if (object == this) {
+                return true;
+            }
+            if (!(object instanceof InvalidMediaType)) {
+                return false;
+            }
+            InvalidMediaType other = (InvalidMediaType) object;
+            return super.equals(other) &&
+                    Objects.equals(type, other.type);
+        }
+
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), type);
         }
 
         public String toString() {
