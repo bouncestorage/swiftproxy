@@ -354,7 +354,7 @@ public final class ObjectResource extends BlobStoreResource {
 
         segments.forEach(e -> logger.debug("sub-object: {}", e));
         Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(segments);
-        logger.debug("getting SLO object: {}", sizeAndEtag);
+        logger.debug("getting DLO object: {}", sizeAndEtag);
 
         InputStream combined = new ManifestObjectInputStream(blobStore, segments);
         long size = sizeAndEtag.getFirst();
@@ -566,22 +566,24 @@ public final class ObjectResource extends BlobStoreResource {
         if (!blobStore.containerExists(container)) {
             return notFound();
         }
-        Blob blob = blobStore.getBlob(container, objectName);
-        if (blob == null) {
+        BlobMetadata meta = blobStore.blobMetadata(container, objectName);
+        if (meta == null) {
             return notFound();
         }
         Map<String, String> newMetadata = getUserMetadata(request);
-        Map<String, String> originalMetadata = blob.getMetadata().getUserMetadata();
+        Map<String, String> originalMetadata = meta.getUserMetadata();
+        // copy the dlo/slo headers
         RESERVED_METADATA.stream()
                 .filter(k -> originalMetadata.containsKey(k))
                 .forEach(k -> newMetadata.put(k, originalMetadata.get(k)));
-        blob.getMetadata().setUserMetadata(newMetadata);
-        copyContentHeaders(blob, contentDisposition, contentEncoding, contentType);
 
-        blobStore.putBlob(container, blob);
+        CopyOptions options = CopyOptions.builder().userMetadata(newMetadata).build();
+        String etag = serverCopyBlob(blobStore, container, objectName, container, objectName, options);
+        if (etag == null) {
+            return notFound();
+        }
+
         return Response.accepted()
-                .header(HttpHeaders.CONTENT_LENGTH, 0)
-                .header(HttpHeaders.CONTENT_TYPE, contentType)
                 .header(HttpHeaders.DATE, new Date())
                 .build();
     }
@@ -786,7 +788,7 @@ public final class ObjectResource extends BlobStoreResource {
         BlobStore blobStore = getBlobStore(authToken).get(container, objectName);
         BlobMetadata meta = blobStore.blobMetadata(container, objectName);
         if (meta == null) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+            return notFound();
         }
 
         boolean isMultiPartManifest = false;
@@ -1035,6 +1037,7 @@ public final class ObjectResource extends BlobStoreResource {
                 etag = etag.substring(1, etag.length() - 1);
             }
 
+            // XXX entry.etag maybe quoted if object was tee'ing back
             if (entry.size_bytes != availableBytes || !entry.etag.equals(etag)) {
                 logger.error("409 conflict: {}/{} {} {} != {} {}",
                         entry.container, entry.object, entry.etag, entry.size_bytes,
@@ -1062,6 +1065,10 @@ public final class ObjectResource extends BlobStoreResource {
                         return res;
                     }
                 } catch (EOFException e) {
+                    if (availableBytes != 0) {
+                        logger.error("error with {} bytes left", availableBytes);
+                        throw e;
+                    }
                     openNextStream();
                 } catch (IOException e) {
                     logger.error("error with {} bytes left", availableBytes);
