@@ -330,29 +330,7 @@ public final class ObjectResource extends BlobStoreResource {
         Pair<String, String> param = validateCopyParam(manifest);
         String dloContainer = param.getFirst();
         String objectsPrefix = param.getSecond();
-        /* jclouds doesn't really support prefixed listing, so faking it with marker */
-        ListContainerOptions listOptions = new ListContainerOptions()
-                .recursive()
-                .prefix(objectsPrefix);
-        logger.debug("dlo prefix: {}", objectsPrefix);
-        Iterable<StorageMetadata> res = Utils.crawlBlobStore(blobStore, dloContainer, listOptions);
-
-        List<ManifestEntry> segments = new ArrayList<>();
-        for (StorageMetadata sm : res) {
-            if (sm.getName().startsWith(objectsPrefix)) {
-                ManifestEntry entry = new ManifestEntry();
-                entry.container = dloContainer;
-                entry.object = sm.getName();
-                entry.size_bytes = sm.getSize();
-                entry.etag = sm.getETag();
-                segments.add(entry);
-            } else {
-                throw new IllegalStateException(
-                        String.format("list object %s from prefix %s", sm.getName(), objectsPrefix));
-            }
-        }
-
-        segments.forEach(e -> logger.debug("sub-object: {}", e));
+        List<ManifestEntry> segments = getDLOSegments(blobStore, dloContainer, objectsPrefix);
         Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(segments);
         logger.debug("getting DLO object: {}", sizeAndEtag);
 
@@ -366,6 +344,32 @@ public final class ObjectResource extends BlobStoreResource {
         return addObjectHeaders(Response.ok(combined), meta,
                 Optional.of(overwriteSizeAndETag(size, sizeAndEtag.getSecond())))
                 .build();
+    }
+
+    private List<ManifestEntry> getDLOSegments(BlobStore blobStore, String container, String objectsPrefix) {
+        ListContainerOptions listOptions = new ListContainerOptions()
+                .recursive()
+                .prefix(objectsPrefix);
+        logger.debug("dlo prefix: {}", objectsPrefix);
+        Iterable<StorageMetadata> res = Utils.crawlBlobStore(blobStore, container, listOptions);
+
+        List<ManifestEntry> segments = new ArrayList<>();
+        for (StorageMetadata sm : res) {
+            if (sm.getName().startsWith(objectsPrefix)) {
+                ManifestEntry entry = new ManifestEntry();
+                entry.container = container;
+                entry.object = sm.getName();
+                entry.size_bytes = sm.getSize();
+                entry.etag = sm.getETag();
+                segments.add(entry);
+            } else {
+                throw new IllegalStateException(
+                        String.format("list object %s from prefix %s", sm.getName(), objectsPrefix));
+            }
+        }
+
+        segments.forEach(e -> logger.debug("sub-object: {}", e));
+        return segments;
     }
 
     private static String normalizePath(String pathName) {
@@ -800,6 +804,23 @@ public final class ObjectResource extends BlobStoreResource {
                 return addObjectHeaders(Response.ok(), meta,
                         Optional.of(overwriteSizeAndETag(Long.parseLong(data[0]), data[1])))
                         .build();
+            }
+        } else {
+            String manifest = meta.getUserMetadata().get(DYNAMIC_OBJECT_MANIFEST);
+            if (manifest != null) {
+                isMultiPartManifest = true;
+                if (!"get".equals(multiPartManifest)) {
+                    Pair<String, String> param = validateCopyParam(manifest);
+                    String dloContainer = param.getFirst();
+                    String objectsPrefix = param.getSecond();
+
+                    blobStore = getBlobStore(authToken).get(container);
+                    List<ManifestEntry> segments = getDLOSegments(blobStore, dloContainer, objectsPrefix);
+                    Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(segments);
+                    return addObjectHeaders(Response.ok(), meta,
+                            Optional.of(overwriteSizeAndETag(sizeAndEtag.getFirst(), sizeAndEtag.getSecond())))
+                            .build();
+                }
             }
         }
 
