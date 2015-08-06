@@ -98,6 +98,7 @@ import org.jclouds.http.HttpResponseException;
 import org.jclouds.io.ContentMetadata;
 import org.jclouds.io.MutableContentMetadata;
 import org.jclouds.io.payloads.InputStreamPayload;
+import org.jclouds.openstack.swift.v1.reference.SwiftHeaders;
 
 @Path("/v1/{account}/{container}/{object:.*}")
 public final class ObjectResource extends BlobStoreResource {
@@ -467,6 +468,7 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
+                               @HeaderParam(SwiftHeaders.OBJECT_COPY_FRESH_METADATA) boolean freshMetadata,
                                @Context Request request) {
         if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
             return badRequest();
@@ -508,16 +510,20 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         CopyOptions options;
-        if (additionalUserMeta.isEmpty()) {
-            options = CopyOptions.NONE;
+        if (freshMetadata) {
+            options = CopyOptions.builder().userMetadata(additionalUserMeta).build();
         } else {
-            Map newMetadata = new HashMap<>();
-            newMetadata.putAll(meta.getUserMetadata());
-            newMetadata.putAll(additionalUserMeta);
+            if (additionalUserMeta.isEmpty()) {
+                options = CopyOptions.NONE;
+            } else {
+                Map newMetadata = new HashMap<>();
+                newMetadata.putAll(meta.getUserMetadata());
+                newMetadata.putAll(additionalUserMeta);
 
-            options = CopyOptions.builder()
-                    .userMetadata(newMetadata)
-                    .build();
+                options = CopyOptions.builder()
+                        .userMetadata(newMetadata)
+                        .build();
+            }
         }
 
         Map<String, String> userMetadata = meta.getUserMetadata();
@@ -668,6 +674,7 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam("X-Delete-At") long deleteAt,
                               @HeaderParam("X-Delete-After") long deleteAfter,
                               @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch,
+                              @HeaderParam(SwiftHeaders.OBJECT_COPY_FRESH_METADATA) boolean freshMetadata,
                               @Context Request request) {
         //objectName = normalizePath(objectName);
         if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
@@ -691,7 +698,8 @@ public final class ObjectResource extends BlobStoreResource {
         if (copyFrom != null) {
             Pair<String, String> copy = validateCopyParam(copyFrom);
             return copyObject(copy.getFirst(), copy.getSecond(), copyFromAccount, authToken,
-                    container + "/" + objectName, account, null, contentType.toString(), contentEncoding, contentDisposition,
+                    container + "/" + objectName, account, null, contentType.toString(),
+                    contentEncoding, contentDisposition, freshMetadata,
                     request);
         }
 
