@@ -6,6 +6,7 @@ addons:
    - python-virtualenv
    - python-dev
    - libffi-dev
+   - python-swiftclient
 jdk:
   - oraclejdk8
 script:
