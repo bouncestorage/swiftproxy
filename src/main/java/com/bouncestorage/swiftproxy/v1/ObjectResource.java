@@ -782,6 +782,9 @@ public final class ObjectResource extends BlobStoreResource {
                     remoteETag = blobStore.putBlob(container, builder.build());
                 } catch (HttpResponseException e) {
                     HttpResponse response = e.getResponse();
+                    if (response == null) {
+                        throw e;
+                    }
                     int code = response.getStatusCode();
 
                     if (code == 400 && !"openstack-swift".equals(blobStore.getContext().unwrap().getId())) {
