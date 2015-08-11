@@ -10,6 +10,4 @@ jdk:
   - oraclejdk8
 script:
  - mvn test
- - ./src/test/resources/run-swift-tests.sh
- - ./src/test/resources/run-swiftclient-python-tests.sh
- - ./src/test/resources/run-swiftclient-tests.sh
+ - ./src/test/resources/run-tests.sh
