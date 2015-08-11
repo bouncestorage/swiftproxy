@@ -18,6 +18,8 @@ package com.bouncestorage.swiftproxy.v1;
 
 import static java.util.Objects.requireNonNull;
 
+import static com.bouncestorage.swiftproxy.Utils.eTagsEqual;
+
 import static com.google.common.base.Throwables.propagate;
 
 import java.io.ByteArrayInputStream;
@@ -644,7 +646,7 @@ public final class ObjectResource extends BlobStoreResource {
                     if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
                         etag = etag.substring(1, etag.length() - 1);
                     }
-                    if (s.size_bytes != size || !s.etag.equals(etag)) {
+                    if (s.size_bytes != size || !eTagsEqual(s.etag, etag)) {
                         logger.error("400 bad request: {}/{} {} {} != {} {}",
                                 s.container, s.object, s.etag, s.size_bytes, etag, size);
 
@@ -1062,12 +1064,8 @@ public final class ObjectResource extends BlobStoreResource {
             availableBytes = Long.parseLong(resp.getHeaderString(HttpHeaders.CONTENT_LENGTH));
             currentStream = (InputStream) resp.getEntity();
             String etag = resp.getHeaderString(HttpHeaders.ETAG);
-            if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
-                etag = etag.substring(1, etag.length() - 1);
-            }
 
-            // XXX entry.etag maybe quoted if object was tee'ing back
-            if (entry.size_bytes != availableBytes || !entry.etag.equals(etag)) {
+            if (entry.size_bytes != availableBytes || !eTagsEqual(entry.etag, etag)) {
                 logger.error("409 conflict: {}/{} {} {} != {} {}",
                         entry.container, entry.object, entry.etag, entry.size_bytes,
                         etag, availableBytes);

@@ -36,6 +36,7 @@ import org.jclouds.blobstore.domain.PageSet;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.domain.StorageType;
 import org.jclouds.blobstore.options.ListContainerOptions;
+import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
 
 public final class Utils {
@@ -146,5 +147,24 @@ public final class Utils {
                 }
             }
         }
+    }
+
+    public static String trimETag(@Nullable String eTag) {
+        if (eTag == null) {
+            return null;
+        }
+        int begin = 0;
+        int end = eTag.length();
+        if (eTag.startsWith("\"")) {
+            begin = 1;
+        }
+        if (eTag.endsWith("\"")) {
+            end = eTag.length() - 1;
+        }
+        return eTag.substring(begin, end);
+    }
+
+    public static boolean eTagsEqual(@Nullable String eTag1, @Nullable String eTag2) {
+        return Objects.equals(trimETag(eTag1), trimETag(eTag2));
     }
 }

@@ -302,7 +302,7 @@ public final class ContainerResource extends BlobStoreResource {
                            @JsonProperty("content_type") String content_type,
                            @JsonProperty("last_modified") Date last_modified) {
             this.name = requireNonNull(name);
-            this.hash = hash == null ? "" : hash;
+            this.hash = hash == null ? "" : Utils.trimETag(hash);
             this.bytes = bytes;
             this.content_type = requireNonNull(content_type);
             this.last_modified = last_modified == null ? Date.from(Instant.EPOCH) : last_modified;
