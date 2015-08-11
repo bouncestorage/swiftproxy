@@ -390,6 +390,10 @@ public final class ObjectResource extends BlobStoreResource {
                     if (name.equalsIgnoreCase(META_HEADER_PREFIX) || RESERVED_METADATA.contains(name)) {
                         throw new BadRequestException();
                     }
+                    if (name.length() - META_HEADER_PREFIX.length() > InfoResource.CONFIG.swift.max_meta_name_length ||
+                            request.getHeader(name).length() > InfoResource.CONFIG.swift.max_meta_value_length) {
+                        throw new BadRequestException();
+                    }
                     return true;
                 })
                 .collect(Collectors.toMap(
@@ -454,6 +458,14 @@ public final class ObjectResource extends BlobStoreResource {
                 throw (HttpResponseException) e.getCause();
             } else {
                 throw e;
+            }
+        }
+    }
+
+    private void validateUserMetadata(Map<String, String> userMetadata) {
+        if (userMetadata != null) {
+            if (userMetadata.size() > InfoResource.CONFIG.swift.max_meta_count) {
+                throw new BadRequestException();
             }
         }
     }
@@ -527,6 +539,7 @@ public final class ObjectResource extends BlobStoreResource {
                         .build();
             }
         }
+        validateUserMetadata(options.getUserMetadata().orNull());
 
         Map<String, String> userMetadata = meta.getUserMetadata();
         String etag = null;
@@ -583,6 +596,8 @@ public final class ObjectResource extends BlobStoreResource {
             return notFound();
         }
         Map<String, String> newMetadata = getUserMetadata(request);
+        validateUserMetadata(newMetadata);
+
         Map<String, String> originalMetadata = meta.getUserMetadata();
         // copy the dlo/slo headers
         RESERVED_METADATA.stream()
@@ -706,6 +721,7 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         Map<String, String> metadata = getUserMetadata(request);
+        validateUserMetadata(metadata);
         InputStream copiedStream = null;
 
         BlobStore blobStore = getBlobStore(authToken).get(container, objectName);
