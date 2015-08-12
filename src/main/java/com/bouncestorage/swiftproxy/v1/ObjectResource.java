@@ -649,18 +649,15 @@ public final class ObjectResource extends BlobStoreResource {
         return new Pair<>(segmentsTotalLength, '"' + hash.hash().toString() + '"');
     }
 
-    private void validateManifest(ManifestEntry[] res, BlobStore blobStore) {
+    private void validateManifest(ManifestEntry[] res, BlobStore blobStore, String authToken) {
         Arrays.stream(res).parallel()
                 .forEach(s -> {
-                    Response r = getObject(blobStore, s.container, s.object, GetOptions.NONE, null, false);
+                    Response r = headObject(blobStore, authToken, s.container, s.object, null);
                     if (!r.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
                         throw new ClientErrorException(Response.Status.CONFLICT);
                     }
                     long size = Long.parseLong(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
                     String etag = r.getHeaderString(HttpHeaders.ETAG);
-                    if (etag.startsWith("\"") && etag.endsWith("\"") && etag.length() > 2) {
-                        etag = etag.substring(1, etag.length() - 1);
-                    }
                     if (s.size_bytes != size || !eTagsEqual(s.etag, etag)) {
                         logger.error("400 bad request: {}/{} {} {} != {} {}",
                                 s.container, s.object, s.etag, s.size_bytes, etag, size);
@@ -729,7 +726,7 @@ public final class ObjectResource extends BlobStoreResource {
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             try (TeeInputStream tee = new TeeInputStream(request.getInputStream(), buffer, true)) {
                 ManifestEntry[] manifest = readSLOManifest(tee);
-                validateManifest(manifest, blobStore);
+                validateManifest(manifest, blobStore, authToken);
                 Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(Arrays.asList(manifest));
                 metadata.put(STATIC_OBJECT_MANIFEST, sizeAndEtag.getFirst() + " " + sizeAndEtag.getSecond());
                 copiedStream = new ByteArrayInputStream(buffer.toByteArray());
@@ -819,6 +816,11 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         BlobStore blobStore = getBlobStore(authToken).get(container, objectName);
+        return headObject(blobStore, authToken, container, objectName, multiPartManifest);
+    }
+
+    private Response headObject(BlobStore blobStore, String authToken,
+                                String container, String objectName, String multiPartManifest) {
         BlobMetadata meta = blobStore.blobMetadata(container, objectName);
         if (meta == null) {
             return notFound();
