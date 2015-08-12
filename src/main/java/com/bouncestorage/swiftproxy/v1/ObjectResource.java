@@ -553,7 +553,11 @@ public final class ObjectResource extends BlobStoreResource {
             }
 
             if (resp != null) {
-                etag = emulateCopyBlob(blobStore, resp, meta, destContainer, destObject, options);
+                try {
+                    etag = emulateCopyBlob(blobStore, resp, meta, destContainer, destObject, options);
+                } finally {
+                    resp.close();
+                }
             }
         }
 
@@ -652,17 +656,24 @@ public final class ObjectResource extends BlobStoreResource {
     private void validateManifest(ManifestEntry[] res, BlobStore blobStore, String authToken) {
         Arrays.stream(res).parallel()
                 .forEach(s -> {
-                    Response r = headObject(blobStore, authToken, s.container, s.object, null);
-                    if (!r.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
-                        throw new ClientErrorException(Response.Status.CONFLICT);
-                    }
-                    long size = Long.parseLong(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
-                    String etag = r.getHeaderString(HttpHeaders.ETAG);
-                    if (s.size_bytes != size || !eTagsEqual(s.etag, etag)) {
-                        logger.error("400 bad request: {}/{} {} {} != {} {}",
-                                s.container, s.object, s.etag, s.size_bytes, etag, size);
+                    Response r = null;
+                    try {
+                        r = headObject(blobStore, authToken, s.container, s.object, null);
+                        if (!r.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
+                            throw new ClientErrorException(Response.Status.CONFLICT);
+                        }
+                        long size = Long.parseLong(r.getHeaderString(HttpHeaders.CONTENT_LENGTH));
+                        String etag = r.getHeaderString(HttpHeaders.ETAG);
+                        if (s.size_bytes != size || !eTagsEqual(s.etag, etag)) {
+                            logger.error("400 bad request: {}/{} {} {} != {} {}",
+                                    s.container, s.object, s.etag, s.size_bytes, etag, size);
 
-                        throw new ClientErrorException(Response.Status.BAD_REQUEST);
+                            throw new ClientErrorException(Response.Status.BAD_REQUEST);
+                        }
+                    } finally {
+                        if (r != null) {
+                            r.close();
+                        }
                     }
                 });
     }
@@ -1021,6 +1032,7 @@ public final class ObjectResource extends BlobStoreResource {
     private class ManifestObjectInputStream extends InputStream {
         private final PeekingIterator<ManifestEntry> entries;
         private final BlobStore blobStore;
+        private Response currentResp;
         private InputStream currentStream;
         private long availableBytes;
 
@@ -1068,7 +1080,8 @@ public final class ObjectResource extends BlobStoreResource {
 
         void openNextStream() throws IOException {
             if (currentStream != null) {
-                currentStream.close();
+                currentResp.close();
+                currentResp = null;
                 currentStream = null;
                 availableBytes = 0;
             }
@@ -1080,10 +1093,12 @@ public final class ObjectResource extends BlobStoreResource {
             logger.info("opening {}/{}", entry.container, entry.object);
             Response resp = getObject(blobStore, entry.container, entry.object, GetOptions.NONE, null, false);
             if (!resp.getStatusInfo().getFamily().equals(Response.Status.Family.SUCCESSFUL)) {
+                resp.close();
                 throw new ClientErrorException(Response.Status.CONFLICT);
             }
             availableBytes = Long.parseLong(resp.getHeaderString(HttpHeaders.CONTENT_LENGTH));
             currentStream = (InputStream) resp.getEntity();
+            currentResp = resp;
             String etag = resp.getHeaderString(HttpHeaders.ETAG);
 
             if (entry.size_bytes != availableBytes || !eTagsEqual(entry.etag, etag)) {
