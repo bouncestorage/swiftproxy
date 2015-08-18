@@ -216,7 +216,7 @@ public final class ContainerResource extends BlobStoreResource {
         logger.info("list: {} marker={} prefix={}", options, options.getMarker(), prefixParam);
         List<ObjectEntry> entries = StreamSupport.stream(
                 Utils.crawlBlobStore(store, container, options).spliterator(), false)
-                .peek(meta -> logger.info("meta: {}", meta))
+                .peek(meta -> logger.debug("meta: {}", meta))
                 //.filter(meta -> (prefix == null || meta.getName().startsWith(prefix)))
                 //.filter(meta -> delimFilter(meta.getName(), delim_filter))
                 .filter(meta -> endMarker == null || meta.getName().compareTo(endMarker) < 0)
