@@ -980,18 +980,39 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         @Override
-        public int read() throws IOException {
+        public int read(byte[] b, int off, int len) throws IOException {
+            if (!maybeSeek()) {
+                return -1;
+            }
+
+            int nread = in.read(b, off, len);
+            if (nread != -1) {
+                currentRange.available -= nread;
+                offset += nread;
+            }
+            return nread;
+        }
+
+        private boolean maybeSeek() throws IOException {
             if (currentRange.available == 0) {
                 if (ranges.hasNext()) {
                     currentRange = ranges.next();
                     seek();
                 } else {
-                    return -1;
+                    return false;
                 }
             }
             if (offset == -1) {
                 offset = 0;
                 seek();
+            }
+            return true;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (!maybeSeek()) {
+                return -1;
             }
 
             int val = in.read();
@@ -1110,13 +1131,44 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            if (currentStream == null || availableBytes == 0) {
+                openNextStream();
+            }
+
+            do {
+                if (currentStream == null) {
+                    return -1;
+                }
+                try {
+                    int res = currentStream.read(b, off, len);
+                    if (res == -1) {
+                        openNextStream();
+                    } else {
+                        availableBytes -= res;
+                        return res;
+                    }
+                } catch (EOFException e) {
+                    if (availableBytes != 0) {
+                        logger.error("error with {} bytes left", availableBytes);
+                        throw e;
+                    }
+                    openNextStream();
+                } catch (IOException e) {
+                    logger.error("error with {} bytes left", availableBytes);
+                    throw e;
+                }
+            } while (true);
+        }
+
+        @Override
         public int read() throws IOException {
             if (currentStream == null || availableBytes == 0) {
                 openNextStream();
             }
 
             do {
-                if (currentStream == null || availableBytes == 0) {
+                if (currentStream == null) {
                     return -1;
                 }
                 try {
