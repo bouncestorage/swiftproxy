@@ -45,7 +45,7 @@ public final class SwiftProxy {
 
         rc = new BounceResourceConfig(properties, locator);
         if (logger.isDebugEnabled()) {
-            rc.register(new LoggingFilter(java.util.logging.Logger.getGlobal(), true));
+            rc.register(new LoggingFilter(java.util.logging.Logger.getGlobal(), false));
         }
         server = GrizzlyHttpServerFactory.createHttpServer(endpoint, rc, false);
         server.getListeners().forEach(listener -> {
