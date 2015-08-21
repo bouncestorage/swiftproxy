@@ -136,7 +136,7 @@ public final class Utils {
                 try {
                     StorageMetadata metadata = iterator.next();
                     // filter out folders with atmos and filesystem providers
-                    if (metadata.getType() == StorageType.FOLDER) {
+                    if (metadata.getType() == StorageType.RELATIVE_PATH) {
                         continue;
                     }
                     return metadata;
