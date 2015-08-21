@@ -83,6 +83,8 @@ SWIFT_TESTS=$(echo \
         test.functional.tests:TestDlo.test_copy \
         test.functional.tests:TestDlo.test_copy_account \
         test.functional.tests:TestDlo.test_copy_manifest \
+        test.functional.tests:TestDlo.test_dlo_if_match_get \
+        test.functional.tests:TestDlo.test_dlo_if_none_match_get \
         test.functional.tests:TestSlo.test_slo_get_simple_manifest \
         test.functional.tests:TestSlo.test_slo_get_nested_manifest \
         test.functional.tests:TestSlo.test_slo_ranged_get \
@@ -95,8 +97,8 @@ SWIFT_TESTS=$(echo \
         test.functional.tests:TestSlo.test_slo_copy_the_manifest \
         test.functional.tests:TestSlo.test_slo_get_the_manifest \
         test.functional.tests:TestSlo.test_slo_head_the_manifest \
-        # test.functional.tests:TestDlo.test_dlo_if_match_get \
-        # test.functional.tests:TestDlo.test_dlo_if_none_match_get \
+        test.functional.tests:TestSlo.test_slo_if_match_get \
+        test.functional.tests:TestSlo.test_slo_if_none_match_get \
 )
 
 if [ "$TRAVIS" != "true" ]; then

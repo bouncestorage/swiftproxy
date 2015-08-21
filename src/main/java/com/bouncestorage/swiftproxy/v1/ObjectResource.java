@@ -225,11 +225,31 @@ public final class ObjectResource extends BlobStoreResource {
         return builder.build();
     }
 
-    private Response getObject(BlobStore blobStore, String container, String object, GetOptions options,
-                               List<Pair<Long, Long>> ranges, boolean multiPartManifest) {
+    private Response conditionalGetSatisified(GetOptions options, String etag, Date mtime) {
+        if (options.getIfMatch() != null && !eTagsEqual(etag, options.getIfMatch())) {
+            return Response.status(Response.Status.PRECONDITION_FAILED).build();
+        }
+
+        if (options.getIfNoneMatch() != null && eTagsEqual(etag, options.getIfNoneMatch())) {
+            return Response.notModified().build();
+        }
+
+        if (options.getIfModifiedSince() != null && mtime.compareTo(options.getIfModifiedSince()) <= 0) {
+            return Response.notModified().build();
+        }
+
+        if (options.getIfUnmodifiedSince() != null && mtime.compareTo(options.getIfUnmodifiedSince()) > 0) {
+            return Response.status(Response.Status.PRECONDITION_FAILED).build();
+        }
+
+        return null;
+    }
+
+    private Response getObject(BlobStore blobStore, String container, String object,
+                               GetOptions options, List<Pair<Long, Long>> ranges, boolean multiPartManifest) {
         Blob blob = null;
         BlobMetadata meta;
-        if (ranges == null || multiPartManifest) {
+        if (GetOptions.NONE.equals(options) || multiPartManifest) {
             blob = blobStore.getBlob(container, object, options);
             if (blob == null) {
                 return Response.status(Response.Status.NOT_FOUND).build();
@@ -247,15 +267,26 @@ public final class ObjectResource extends BlobStoreResource {
         if (meta.getUserMetadata().containsKey(DYNAMIC_OBJECT_MANIFEST)) {
             isMultiPartManifest = true;
             if (!multiPartManifest) {
-                return getDloObject(blobStore, meta, ranges);
+                return getDloObject(blobStore, meta, options, ranges);
             }
         } else if (meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
             isMultiPartManifest = true;
             if (!multiPartManifest) {
                 if (blob == null) {
+                    String sloData = meta.getUserMetadata().get(STATIC_OBJECT_MANIFEST);
+                    String[] data = sloData.split(" ", 2);
+
+                    Response cond = conditionalGetSatisified(options,
+                            data[1], meta.getLastModified());
+                    if (cond != null) {
+                        return cond;
+                    }
+                }
+
+                if (blob == null) {
                     blob = blobStore.getBlob(container, object);
                 }
-                return getSloObject(blobStore, blob, ranges);
+                return getSloObject(blobStore, blob, options, ranges);
             }
         } else if (blob == null) {
             // this is just a normal blob
@@ -306,10 +337,11 @@ public final class ObjectResource extends BlobStoreResource {
         }).sum();
     }
 
-    private Response getSloObject(BlobStore blobStore, Blob blob, List<Pair<Long, Long>> ranges) {
+    private Response getSloObject(BlobStore blobStore, Blob blob, GetOptions options, List<Pair<Long, Long>> ranges) {
         try {
             Iterable<ManifestEntry> entries = Arrays.asList(readSLOManifest(blob.getPayload().openStream()));
             Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(entries);
+
             logger.debug("getting SLO object: {}", sizeAndEtag);
             entries.forEach(e -> logger.debug("sub-object: {}", e));
 
@@ -328,13 +360,20 @@ public final class ObjectResource extends BlobStoreResource {
         }
     }
 
-    private Response getDloObject(BlobStore blobStore, BlobMetadata meta, List<Pair<Long, Long>> ranges) {
+    private Response getDloObject(BlobStore blobStore, BlobMetadata meta, GetOptions options, List<Pair<Long, Long>> ranges) {
         String manifest = meta.getUserMetadata().get(DYNAMIC_OBJECT_MANIFEST);
         Pair<String, String> param = validateCopyParam(manifest);
         String dloContainer = param.getFirst();
         String objectsPrefix = param.getSecond();
         List<ManifestEntry> segments = getDLOSegments(blobStore, dloContainer, objectsPrefix);
         Pair<Long, String> sizeAndEtag = getManifestTotalSizeAndETag(segments);
+
+        Response cond = conditionalGetSatisified(options,
+                sizeAndEtag.getSecond(), meta.getLastModified());
+        if (cond != null) {
+            return cond;
+        }
+
         logger.debug("getting DLO object: {}", sizeAndEtag);
 
         InputStream combined = new ManifestObjectInputStream(blobStore, segments);
@@ -547,9 +586,9 @@ public final class ObjectResource extends BlobStoreResource {
             // copy is supposed to flatten the large object, which we have to emulate
             Response resp = null;
             if (userMetadata.containsKey(DYNAMIC_OBJECT_MANIFEST)) {
-                resp = getDloObject(blobStore, meta, null);
+                resp = getDloObject(blobStore, meta, GetOptions.NONE, null);
             } else if (userMetadata.containsKey(STATIC_OBJECT_MANIFEST)) {
-                resp = getSloObject(blobStore, blobStore.getBlob(container, objectName), null);
+                resp = getSloObject(blobStore, blobStore.getBlob(container, objectName), GetOptions.NONE, null);
             }
 
             if (resp != null) {
