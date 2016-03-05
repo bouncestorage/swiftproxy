@@ -98,6 +98,7 @@ import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.http.HttpResponse;
 import org.jclouds.http.HttpResponseException;
 import org.jclouds.io.ContentMetadata;
+import org.jclouds.io.ContentMetadataBuilder;
 import org.jclouds.io.MutableContentMetadata;
 import org.jclouds.io.payloads.InputStreamPayload;
 import org.jclouds.openstack.swift.v1.reference.SwiftHeaders;
@@ -566,6 +567,21 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         CopyOptions.Builder builder = CopyOptions.builder();
+
+        ContentMetadataBuilder contentMetadata = meta.getContentMetadata().toBuilder();
+
+        if (contentDisposition != null) {
+            contentMetadata.contentDisposition(contentDisposition);
+        }
+        if (contentEncoding != null) {
+            contentMetadata.contentEncoding(contentEncoding);
+        }
+        if (contentType != null) {
+            contentMetadata.contentType(contentType);
+        }
+
+        builder.contentMetadata(contentMetadata.build());
+
         if (freshMetadata) {
             builder.userMetadata(additionalUserMeta);
         } else {
