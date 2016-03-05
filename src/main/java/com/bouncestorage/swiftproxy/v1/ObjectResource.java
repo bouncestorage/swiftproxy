@@ -954,6 +954,50 @@ public final class ObjectResource extends BlobStoreResource {
         }
 
         BlobStore store = getBlobStore(authToken).get(container, objectName);
+
+        if ("delete".equals(multipartManifest)) {
+            Blob blob;
+            try {
+                blob = store.getBlob(container, objectName);
+            } catch (ContainerNotFoundException cnfe) {
+                blob = null;
+            }
+            if (blob == null) {
+                return Response.status(Response.Status.OK)
+                        .entity("{\"Number Not Found\": 1" +
+                                ", \"Response Status\": \"404 Not Found\"" +
+                                // TODO: JSON encode container and objectName
+                                ", \"Errors\": [[\"/" + container + "/" + objectName + "\", \"Not found\"]]" +
+                                ", \"Number Deleted\": 0" +
+                                ", \"Response Body\": \"\"}")
+                        .build();
+            }
+
+            if (!blob.getMetadata().getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
+                return Response.status(Response.Status.OK)
+                        .entity("{\"Number Not Found\": 0" +
+                                ", \"Response Status\": \"400 Bad Request\"" +
+                                // TODO: JSON encode container and objectName
+                                ", \"Errors\": [[\"/" + container + "/" + objectName + "\", \"Not an SLO manifest\"]]" +
+                                ", \"Number Deleted\": 0" +
+                                ", \"Response Body\": \"\"}")
+                        .build();
+            }
+
+            ManifestEntry[] entries = readSLOManifest(blob.getPayload().openStream());
+            Arrays.stream(entries).parallel().forEach(e -> store.removeBlob(e.container, e.object));
+
+            store.removeBlob(container, objectName);
+
+            return Response.status(Response.Status.OK)
+                    .entity("{\"Number Not Found\": 0" +
+                            ", \"Response Status\": \"200 OK\"" +
+                            ", \"Errors\": [[]]" +
+                            ", \"Number Deleted\": " + entries.length +
+                            ", \"Response Body\": \"\"}")
+                    .build();
+        }
+
         if (!store.containerExists(container)) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
@@ -962,14 +1006,6 @@ public final class ObjectResource extends BlobStoreResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
 
-        if ("delete".equals(multipartManifest) && meta.getUserMetadata().containsKey(STATIC_OBJECT_MANIFEST)) {
-            Blob blob = store.getBlob(container, objectName);
-            if (blob == null) {
-                return notFound();
-            }
-            ManifestEntry[] entries = readSLOManifest(blob.getPayload().openStream());
-            Arrays.stream(entries).parallel().forEach(e -> store.removeBlob(e.container, e.object));
-        }
         store.removeBlob(container, objectName);
 
         return Response.noContent()
