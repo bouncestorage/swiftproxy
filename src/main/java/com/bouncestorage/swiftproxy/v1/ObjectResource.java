@@ -470,7 +470,7 @@ public final class ObjectResource extends BlobStoreResource {
             ContentMetadata contentMetadata = meta.getContentMetadata();
             Map newMetadata = new HashMap<>();
             newMetadata.putAll(meta.getUserMetadata());
-            newMetadata.putAll(options.getUserMetadata().or(ImmutableMap.of()));
+            newMetadata.putAll(options.userMetadata());
             RESERVED_METADATA.forEach(s -> newMetadata.remove(s));
             Blob blob = blobStore.blobBuilder(destObject)
                     .userMetadata(newMetadata)
@@ -578,7 +578,7 @@ public final class ObjectResource extends BlobStoreResource {
                         .build();
             }
         }
-        validateUserMetadata(options.getUserMetadata().orNull());
+        validateUserMetadata(options.userMetadata());
 
         Map<String, String> userMetadata = meta.getUserMetadata();
         String etag = null;
