@@ -179,16 +179,6 @@
           <version>${jclouds.version}</version>
         </dependency>
         <dependency>
-          <groupId>org.apache.jclouds.labs</groupId>
-          <artifactId>rackspace-cloudfiles-uk</artifactId>
-          <version>${jclouds.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.jclouds.labs</groupId>
-          <artifactId>rackspace-cloudfiles-us</artifactId>
-          <version>${jclouds.version}</version>
-        </dependency>
-        <dependency>
           <groupId>ch.qos.logback</groupId>
           <artifactId>logback-classic</artifactId>
           <version>1.1.3</version>
