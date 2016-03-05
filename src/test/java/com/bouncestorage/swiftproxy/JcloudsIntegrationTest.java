@@ -74,4 +74,14 @@ public final class JcloudsIntegrationTest extends SwiftBlobIntegrationLiveTest {
     public void testPutBlobAccessMultipart() throws Exception {
         throw new SkipException("unsupported in swift");
     }
+
+    @Override
+    public void testCopyIfNoneMatch() throws Exception {
+        throw new SkipException("unsupported in swift");
+    }
+
+    @Override
+    public void testCopyIfNoneMatchNegative() throws Exception {
+        throw new SkipException("unsupported in swift");
+    }
 }
