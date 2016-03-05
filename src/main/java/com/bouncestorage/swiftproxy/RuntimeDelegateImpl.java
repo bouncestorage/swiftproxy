@@ -80,6 +80,7 @@ public final class RuntimeDelegateImpl extends RuntimeDelegate {
             this.type = requireNonNull(type);
         }
 
+        @Override
         public boolean equals(Object object) {
             if (object == this) {
                 return true;
@@ -92,10 +93,12 @@ public final class RuntimeDelegateImpl extends RuntimeDelegate {
                     Objects.equals(type, other.type);
         }
 
+        @Override
         public int hashCode() {
             return Objects.hash(super.hashCode(), type);
         }
 
+        @Override
         public String toString() {
             StringBuilder res = new StringBuilder(type);
             Map<String, String> params = getParameters();
