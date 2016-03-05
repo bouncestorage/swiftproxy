@@ -469,7 +469,7 @@ public final class ObjectResource extends BlobStoreResource {
         Response.StatusType statusInfo = resp.getStatusInfo();
         if (statusInfo.equals(Response.Status.OK)) {
             ContentMetadata contentMetadata = meta.getContentMetadata();
-            Map newMetadata = new HashMap<>();
+            Map<String, String> newMetadata = new HashMap<>();
             newMetadata.putAll(meta.getUserMetadata());
             newMetadata.putAll(options.userMetadata());
             RESERVED_METADATA.forEach(s -> newMetadata.remove(s));
@@ -586,7 +586,7 @@ public final class ObjectResource extends BlobStoreResource {
             builder.userMetadata(additionalUserMeta);
         } else {
             if (!additionalUserMeta.isEmpty()) {
-                Map newMetadata = new HashMap<>();
+                Map<String, String> newMetadata = new HashMap<>();
                 newMetadata.putAll(meta.getUserMetadata());
                 newMetadata.putAll(additionalUserMeta);
                 builder.userMetadata(newMetadata);
@@ -1032,7 +1032,7 @@ public final class ObjectResource extends BlobStoreResource {
                 currentRange = this.ranges.next();
             } else {
                 this.ranges = Iterators.emptyIterator();
-                currentRange = new Range(new Pair(0, Long.MAX_VALUE));
+                currentRange = new Range(new Pair<>(0L, Long.MAX_VALUE));
             }
         }
 
