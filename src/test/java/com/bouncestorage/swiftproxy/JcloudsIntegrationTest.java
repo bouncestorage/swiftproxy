@@ -27,6 +27,7 @@ import org.jclouds.Constants;
 import org.jclouds.openstack.keystone.v2_0.config.KeystoneProperties;
 import org.jclouds.openstack.swift.v1.blobstore.integration.SwiftBlobIntegrationLiveTest;
 import org.junit.AfterClass;
+import org.testng.SkipException;
 
 public final class JcloudsIntegrationTest extends SwiftBlobIntegrationLiveTest {
     protected static final int AWAIT_CONSISTENCY_TIMEOUT_SECONDS = Integer.parseInt(System.getProperty(
@@ -62,5 +63,15 @@ public final class JcloudsIntegrationTest extends SwiftBlobIntegrationLiveTest {
         props.setProperty(Constants.PROPERTY_CREDENTIAL, credential);
         props.setProperty(Constants.PROPERTY_ENDPOINT, endpoint);
         return props;
+    }
+
+    @Override
+    public void testPutBlobAccess() throws Exception {
+        throw new SkipException("unsupported in swift");
+    }
+
+    @Override
+    public void testPutBlobAccessMultipart() throws Exception {
+        throw new SkipException("unsupported in swift");
     }
 }
