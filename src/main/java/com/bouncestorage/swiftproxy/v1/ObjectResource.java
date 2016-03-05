@@ -521,6 +521,9 @@ public final class ObjectResource extends BlobStoreResource {
                                @HeaderParam(HttpHeaders.CONTENT_TYPE) String contentType,
                                @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                                @HeaderParam(HttpHeaders.CONTENT_DISPOSITION) String contentDisposition,
+                               @HeaderParam(HttpHeaders.IF_MATCH) String ifMatch,
+                               @HeaderParam(HttpHeaders.IF_MODIFIED_SINCE) Date ifModifiedSince,
+                               @HeaderParam(HttpHeaders.IF_UNMODIFIED_SINCE) Date ifUnmodifiedSince,
                                @HeaderParam(SwiftHeaders.OBJECT_COPY_FRESH_METADATA) boolean freshMetadata,
                                @Context Request request) {
         if (objectName.length() > InfoResource.CONFIG.swift.max_object_name_length) {
@@ -562,22 +565,29 @@ public final class ObjectResource extends BlobStoreResource {
             return notFound();
         }
 
-        CopyOptions options;
+        CopyOptions.Builder builder = CopyOptions.builder();
         if (freshMetadata) {
-            options = CopyOptions.builder().userMetadata(additionalUserMeta).build();
+            builder.userMetadata(additionalUserMeta);
         } else {
-            if (additionalUserMeta.isEmpty()) {
-                options = CopyOptions.NONE;
-            } else {
+            if (!additionalUserMeta.isEmpty()) {
                 Map newMetadata = new HashMap<>();
                 newMetadata.putAll(meta.getUserMetadata());
                 newMetadata.putAll(additionalUserMeta);
-
-                options = CopyOptions.builder()
-                        .userMetadata(newMetadata)
-                        .build();
+                builder.userMetadata(newMetadata);
             }
         }
+
+        if (ifMatch != null) {
+            builder.ifMatch(ifMatch);
+        }
+        if (ifModifiedSince != null) {
+            builder.ifModifiedSince(ifModifiedSince);
+        }
+        if (ifUnmodifiedSince != null) {
+            builder.ifUnmodifiedSince(ifUnmodifiedSince);
+        }
+
+        CopyOptions options = builder.build();
         validateUserMetadata(options.userMetadata());
 
         Map<String, String> userMetadata = meta.getUserMetadata();
@@ -737,7 +747,10 @@ public final class ObjectResource extends BlobStoreResource {
                               @HeaderParam(HttpHeaders.CONTENT_ENCODING) String contentEncoding,
                               @HeaderParam("X-Delete-At") long deleteAt,
                               @HeaderParam("X-Delete-After") long deleteAfter,
+                              @HeaderParam(HttpHeaders.IF_MATCH) String ifMatch,
                               @HeaderParam(HttpHeaders.IF_NONE_MATCH) String ifNoneMatch,
+                              @HeaderParam(HttpHeaders.IF_MODIFIED_SINCE) Date ifModifiedSince,
+                              @HeaderParam(HttpHeaders.IF_UNMODIFIED_SINCE) Date ifUnmodifiedSince,
                               @HeaderParam(SwiftHeaders.OBJECT_COPY_FRESH_METADATA) boolean freshMetadata,
                               @Context Request request) {
         //objectName = normalizePath(objectName);
@@ -763,7 +776,8 @@ public final class ObjectResource extends BlobStoreResource {
             Pair<String, String> copy = validateCopyParam(copyFrom);
             return copyObject(copy.getFirst(), copy.getSecond(), copyFromAccount, authToken,
                     container + "/" + objectName, account, null, contentType.toString(),
-                    contentEncoding, contentDisposition, freshMetadata,
+                    contentEncoding, contentDisposition,
+                    ifMatch, ifModifiedSince, ifUnmodifiedSince, freshMetadata,
                     request);
         }
 
