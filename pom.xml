@@ -337,7 +337,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.18.1</version>
+                <version>${surefire.version}</version>
                 <configuration>
                     <parallel>all</parallel>
                     <threadCount>1</threadCount>
@@ -354,6 +354,7 @@
         <jersey.version>2.18</jersey.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jclouds.version>2.0.0-SNAPSHOT</jclouds.version>
+        <surefire.version>2.19.1</surefire.version>
         <swiftproxy.conf>src/main/resources/swiftproxy.conf</swiftproxy.conf>
     </properties>
 </project>
