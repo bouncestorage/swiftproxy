@@ -357,6 +357,7 @@
                     <redirectTestOutputToFile>true</redirectTestOutputToFile>
                     <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
                     <runOrder>random</runOrder>
+                    <trimStackTrace>false</trimStackTrace>
                 </configuration>
             </plugin>
         </plugins>
