@@ -23,6 +23,7 @@ import static com.google.common.base.Throwables.propagate;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,18 +59,17 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
+import com.google.common.net.PercentEscaper;
 
 import org.glassfish.grizzly.http.server.Request;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.ContainerNotFoundException;
 import org.jclouds.blobstore.domain.StorageMetadata;
-import org.jclouds.util.Strings2;
 
 @Singleton
 @Path("/v1/{account}")
 public final class AccountResource extends BlobStoreResource {
-    private static final Iterable<Character> skipPathEncoding = Lists.charactersOf("/:;=");
+    private static final PercentEscaper BULK_DELETE_ESCAPER = new PercentEscaper("-_.~:/", false);
 
     @GET
     public Response getAccount(@NotNull @PathParam("account") String account,
@@ -176,7 +176,7 @@ public final class AccountResource extends BlobStoreResource {
             while ((line = in.readLine()) != null) {
                 if (isTransient) {
                     // jclouds does not escape things correctly
-                    line = Strings2.urlEncode(line, skipPathEncoding);
+                    line = BULK_DELETE_ESCAPER.escape(URLDecoder.decode(line, "UTF-8"));
                 }
                 objects.add(line);
             }
