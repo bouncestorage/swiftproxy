@@ -5,6 +5,7 @@ addons:
    - python-pip
    - python-virtualenv
    - python-dev
+   - liberasurecode-dev
    - libffi-dev
 jdk:
   - oraclejdk8
