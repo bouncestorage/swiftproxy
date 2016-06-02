@@ -20,9 +20,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
 import com.google.inject.Module;
 
 import org.jclouds.Constants;
@@ -71,6 +73,15 @@ public final class Main {
                     Constants.PROPERTY_CREDENTIAL + "%n" +
                     SwiftProxy.PROPERTY_ENDPOINT + "%n");
             System.exit(1);
+        }
+
+        if (provider.equals("google-cloud-storage")) {
+            File credentialFile = new File(credential);
+            if (credentialFile.exists()) {
+                credential = Files.toString(credentialFile,
+                        StandardCharsets.UTF_8);
+            }
+            properties.remove(Constants.PROPERTY_CREDENTIAL);
         }
 
         ContextBuilder builder = ContextBuilder
