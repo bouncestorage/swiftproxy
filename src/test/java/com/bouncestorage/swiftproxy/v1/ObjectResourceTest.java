@@ -18,6 +18,8 @@ package com.bouncestorage.swiftproxy.v1;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Random;
+
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -34,7 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 public final class ObjectResourceTest {
-    private static final String CONTAINER = "test-container";
+    private static final String CONTAINER = "swiftproxy-test-container-" + new Random().nextInt(Integer.MAX_VALUE);
     private static final String BLOB_NAME = "blob";
     private final String path;
 

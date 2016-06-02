@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -38,7 +39,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 public final class AccountResourceTest {
-    private static final String CONTAINER = "testContainer";
+    private static final String CONTAINER = "swiftproxy-test-container-" + new Random().nextInt(Integer.MAX_VALUE);
     private SwiftProxy proxy;
     private WebTarget target;
 
