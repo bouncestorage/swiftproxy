@@ -133,18 +133,14 @@ public final class Utils {
                     advance();
                     continue;
                 }
-                try {
-                    StorageMetadata metadata = iterator.next();
-                    // filter out folders with atmos and filesystem providers
-                    if (metadata.getType() == StorageType.RELATIVE_PATH) {
-                        continue;
-                    }
-                    return metadata;
-                } catch (NullPointerException e) {
-                    NullPointerException e2 = new NullPointerException("marker " + marker);
-                    e2.initCause(e);
-                    throw e2;
+
+                StorageMetadata metadata = iterator.next();
+                // filter out folders with atmos and filesystem providers
+                // accept metadata == null for Google Cloud Storage folders
+                if (metadata == null || metadata.getType() == StorageType.RELATIVE_PATH) {
+                    continue;
                 }
+                return metadata;
             }
         }
     }
