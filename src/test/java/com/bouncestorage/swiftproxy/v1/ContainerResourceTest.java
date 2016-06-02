@@ -23,7 +23,9 @@ import java.util.Random;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import com.bouncestorage.swiftproxy.SwiftProxy;
@@ -74,9 +76,33 @@ public final class ContainerResourceTest {
         assertThat(resp.getStatus()).isEqualTo(Response.Status.NO_CONTENT.getStatusCode());
     }
 
+    @Test
+    public void testGetContainer() throws Exception {
+        Response resp = getContainer(CONTAINER, Optional.empty());
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.NOT_FOUND.getStatusCode());
+
+        String authToken = TestUtils.createContainer(target, CONTAINER);
+
+        String data = "foo";
+        resp = target.path(TestUtils.ACCOUNT_PATH + "/" + CONTAINER + "/blob").request()
+                .header("x-auth-token", authToken)
+                .put(Entity.entity(data.getBytes(), MediaType.APPLICATION_OCTET_STREAM));
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.CREATED.getStatusCode());
+
+        resp = getContainer(CONTAINER, Optional.of(authToken));
+        assertThat(resp.getStatus()).isEqualTo(Response.Status.OK.getStatusCode());
+        assertThat(resp.readEntity(String.class)).isEqualTo("blob\n");
+    }
+
     Response headContainer(String container, Optional<String> authToken) {
         return target.path(TestUtils.ACCOUNT_PATH + "/" + container).request()
                 .header("x-auth-token", authToken.orElseGet(() -> TestUtils.getAuthToken(target)))
                 .head();
+    }
+
+    Response getContainer(String container, Optional<String> authToken) {
+        return target.path(TestUtils.ACCOUNT_PATH + "/" + container).request()
+                .header("x-auth-token", authToken.orElseGet(() -> TestUtils.getAuthToken(target)))
+                .get();
     }
 }
