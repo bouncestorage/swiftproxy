@@ -38,14 +38,14 @@ Users can
 [download releases](https://github.com/bouncestorage/swiftproxy/releases)
 from GitHub.  One can also build the project by running `mvn package`
 which produces a binary at
-`target/swift-proxy-1.0-SNAPSHOT-jar-with-dependencies.jar`.
+`target/swift-proxy-1.0.0-jar-with-dependencies.jar`.
 SwiftProxy requires Java 8 to run.
 
 Examples
 --------
 
 ```
-java -jar ./swift-proxy-1.0-SNAPSHOT-jar-with-dependencies.jar --properties swiftproxy.conf
+java -jar ./swift-proxy-1.0.0-jar-with-dependencies.jar --properties swiftproxy.conf
 ```
 
 Users can configure SwiftProxy via a properties file.  An example
