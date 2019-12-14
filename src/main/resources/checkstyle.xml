@@ -27,7 +27,6 @@
   <module name="NewlineAtEndOfFile"/>
   <module name="Translation"/>
   <module name="TreeWalker">
-    <property name="cacheFile" value="target/cachefile"/>
 <!--
     <module name="AbstractClassName"/>
 -->
@@ -70,6 +69,8 @@
       <property name="groups" value="java,javax,com,io,org"/>
       <property name="separated" value="true"/>
       <property name="option" value="top"/>
+      <property name="separatedStaticGroups" value="true"/>
+      <property name="staticGroups" value="java,javax,com,io,org"/>
     </module>
 <!--
     TODO: disabled until upstream addresses issues with lambdas:
@@ -136,6 +137,7 @@
     <module name="SimplifyBooleanReturn"/>
     <module name="StaticVariableName"/>
     <module name="StringLiteralEquality"/>
+    <module name="SuppressionCommentFilter"/>
     <module name="SuppressWarnings"/>
     <module name="TodoComment">
       <property name="severity" value="ignore"/>
@@ -154,8 +156,6 @@
     </module>
     <module name="WhitespaceAfter"/>
     <module name="WhitespaceAround"/>
-    <!-- so we can use SuppressionCommentFilter -->
-    <module name="FileContentsHolder"/>
   </module>
   <module name="Header">
     <property name="fileExtensions" value="java"/>
@@ -165,5 +165,4 @@
     <property name="format" value="\s+$"/>
     <property name="message" value="Line has trailing spaces."/>
   </module>
-  <module name="SuppressionCommentFilter"/>
 </module>

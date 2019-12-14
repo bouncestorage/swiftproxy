@@ -292,11 +292,11 @@ public final class ContainerResource extends BlobStoreResource {
         Date last_modified;
 
         // dummy
-        public ObjectEntry() {
+        ObjectEntry() {
         }
 
         @JsonCreator
-        public ObjectEntry(@JsonProperty("name") String name,
+        ObjectEntry(@JsonProperty("name") String name,
                            @JsonProperty("hash") String hash,
                            @JsonProperty("bytes") long bytes,
                            @JsonProperty("content_type") String content_type,

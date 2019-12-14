@@ -19,7 +19,6 @@ package com.bouncestorage.swiftproxy.v1;
 import static java.util.Objects.requireNonNull;
 
 import static com.bouncestorage.swiftproxy.Utils.eTagsEqual;
-
 import static com.google.common.base.Throwables.propagate;
 
 import java.io.ByteArrayInputStream;

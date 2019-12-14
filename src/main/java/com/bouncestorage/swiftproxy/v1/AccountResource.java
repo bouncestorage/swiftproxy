@@ -108,7 +108,7 @@ public final class AccountResource extends BlobStoreResource {
         }
 
         long count = entries.size();
-        limit.ifPresent((max) -> {
+        limit.ifPresent(max -> {
             if (entries.size() > max) {
                 entries.subList(max, entries.size()).clear();
             }
@@ -243,12 +243,12 @@ public final class AccountResource extends BlobStoreResource {
         private long bytes;
 
         // for jackson XML
-        public ContainerEntry() {
+        ContainerEntry() {
 
         }
 
         @JsonCreator
-        public ContainerEntry(@JsonProperty("name") String name) {
+        ContainerEntry(@JsonProperty("name") String name) {
             this.name = requireNonNull(name);
         }
 

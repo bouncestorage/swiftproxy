@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.core.MediaType;
 
 import com.bouncestorage.swiftproxy.v1.InfoResource;
-
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
@@ -34,9 +33,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Module;
 
 import org.apache.commons.lang3.RandomStringUtils;
-
 import org.glassfish.jersey.server.ResourceConfig;
-
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
