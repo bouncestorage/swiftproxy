@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.jclouds.Constants;
-import org.jclouds.openstack.keystone.v2_0.config.KeystoneProperties;
+import org.jclouds.openstack.keystone.config.KeystoneProperties;
 import org.jclouds.openstack.swift.v1.blobstore.integration.SwiftBlobIntegrationLiveTest;
 import org.testng.annotations.AfterClass;
 
