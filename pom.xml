@@ -248,23 +248,9 @@
                 <version>3.5.1</version>
                 <inherited>true</inherited>
                 <configuration>
-                    <compilerId>javac-with-errorprone</compilerId>
-                    <forceJavacCompilerUse>true</forceJavacCompilerUse>
                     <source>1.8</source>
                     <target>1.8</target>
                 </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.codehaus.plexus</groupId>
-                        <artifactId>plexus-compiler-javac-errorprone</artifactId>
-                        <version>2.6</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>com.google.errorprone</groupId>
-                        <artifactId>error_prone_core</artifactId>
-                        <version>2.3.4</version>
-                    </dependency>
-                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
