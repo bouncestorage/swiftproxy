@@ -31,6 +31,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -70,7 +71,7 @@ import com.bouncestorage.swiftproxy.Utils;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -1066,7 +1067,7 @@ public final class ObjectResource extends BlobStoreResource {
                 this.ranges = ranges.stream().map(r -> new Range(r)).collect(Collectors.toList()).iterator();
                 currentRange = this.ranges.next();
             } else {
-                this.ranges = Iterators.emptyIterator();
+                this.ranges = Collections.emptyIterator();
                 currentRange = new Range(new Pair<>(0L, Long.MAX_VALUE));
             }
         }
@@ -1146,7 +1147,7 @@ public final class ObjectResource extends BlobStoreResource {
 
             @Override
             public String toString() {
-                return Objects.toStringHelper(this)
+                return MoreObjects.toStringHelper(this)
                         .add("start", start)
                         .add("available", available)
                         .toString();
@@ -1311,7 +1312,7 @@ public final class ObjectResource extends BlobStoreResource {
 
         @Override
         public String toString() {
-            return Objects.toStringHelper(this)
+            return MoreObjects.toStringHelper(this)
                     .add("object", container + "/" + object)
                     .add("size", size_bytes)
                     .toString();

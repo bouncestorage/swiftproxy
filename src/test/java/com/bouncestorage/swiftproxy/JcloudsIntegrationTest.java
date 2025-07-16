@@ -26,7 +26,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import org.jclouds.Constants;
 import org.jclouds.openstack.keystone.config.KeystoneProperties;
 import org.jclouds.openstack.swift.v1.blobstore.integration.SwiftBlobIntegrationLiveTest;
-import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterSuite;
 
 public final class JcloudsIntegrationTest extends SwiftBlobIntegrationLiveTest {
     protected static final int AWAIT_CONSISTENCY_TIMEOUT_SECONDS = Integer.parseInt(System.getProperty(
@@ -36,8 +36,9 @@ public final class JcloudsIntegrationTest extends SwiftBlobIntegrationLiveTest {
     public JcloudsIntegrationTest() throws Exception {
     }
 
-    @AfterClass
-    public void tearDown() {
+    @AfterSuite
+    @Override
+    public void destroyResources() {
         proxy.stop();
     }
 

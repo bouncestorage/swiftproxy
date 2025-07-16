@@ -125,6 +125,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>2.3.1</version>
+        </dependency>
+        <dependency>
             <groupId>org.glassfish.jersey.containers</groupId>
             <artifactId>jersey-container-grizzly2-http</artifactId>
         </dependency>
@@ -171,7 +176,7 @@
           <artifactId>assertj-core</artifactId>
           <scope>test</scope>
           <!-- we need to use the same version as in jclouds because we pull in their tests -->
-          <version>1.7.0</version>
+          <version>3.23.1</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
@@ -208,7 +213,7 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <version>6.8.8</version>
+            <version>7.5.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -346,7 +351,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <parallel>all</parallel>
+                    <parallel>methods</parallel>
                     <threadCount>1</threadCount>
                     <argLine>-Xmx512m</argLine>
                     <redirectTestOutputToFile>true</redirectTestOutputToFile>
@@ -367,8 +372,8 @@
     <properties>
         <jersey.version>2.18</jersey.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jclouds.version>2.2.0</jclouds.version>
-        <surefire.version>2.19.1</surefire.version>
+        <jclouds.version>2.7.0</jclouds.version>
+        <surefire.version>3.1.0</surefire.version>
         <swiftproxy.conf>src/main/resources/swiftproxy.conf</swiftproxy.conf>
     </properties>
 </project>
