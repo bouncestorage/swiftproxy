@@ -16,10 +16,6 @@
 
 package com.bouncestorage.swiftproxy;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Properties;
@@ -54,14 +50,6 @@ public final class Utils {
             BlobStore blobStore, String containerName,
             ListContainerOptions options) {
         return new CrawlBlobStoreIterable(blobStore, containerName, options);
-    }
-
-    public static Properties propertiesFromFile(File file) throws IOException {
-        Properties properties = new Properties();
-        try (InputStream is = new FileInputStream(file)) {
-            properties.load(is);
-        }
-        return properties;
     }
 
     public static BlobStore storeFromProperties(Properties properties) {

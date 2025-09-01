@@ -18,17 +18,19 @@ package com.bouncestorage.swiftproxy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Properties;
 
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 
-import com.google.common.io.Files;
 import com.google.common.io.Resources;
 
 import org.jclouds.Constants;
@@ -50,9 +52,10 @@ public final class TestUtils {
         String provider = properties.getProperty(Constants.PROPERTY_PROVIDER);
         String credential = properties.getProperty(Constants.PROPERTY_CREDENTIAL);
         if (provider != null && credential != null && provider.equals("google-cloud-storage")) {
-            File credentialFile = new File(credential);
-            if (credentialFile.exists()) {
-                credential = Files.toString(credentialFile,
+            FileSystem fs = FileSystems.getDefault();
+            Path credentialPath = fs.getPath(credential);
+            if (Files.exists(credentialPath)) {
+                credential = new String(Files.readAllBytes(credentialPath),
                         StandardCharsets.UTF_8);
             }
             properties.put(Constants.PROPERTY_CREDENTIAL, credential);

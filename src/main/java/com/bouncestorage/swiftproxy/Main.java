@@ -16,15 +16,16 @@
 
 package com.bouncestorage.swiftproxy;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
 import com.google.inject.Module;
 
 import org.jclouds.Constants;
@@ -55,8 +56,9 @@ public final class Main {
             System.exit(1);
         }
 
+        FileSystem fs = FileSystems.getDefault();
         Properties properties = new Properties();
-        try (InputStream is = new FileInputStream(new File(args[1]))) {
+        try (InputStream is = Files.newInputStream(fs.getPath(args[1]))) {
             properties.load(is);
         }
         properties.putAll(System.getProperties());
@@ -76,9 +78,9 @@ public final class Main {
         }
 
         if (provider.equals("google-cloud-storage")) {
-            File credentialFile = new File(credential);
-            if (credentialFile.exists()) {
-                credential = Files.toString(credentialFile,
+            Path credentialPath = fs.getPath(credential);
+            if (Files.exists(credentialPath)) {
+                credential = new String(Files.readAllBytes(credentialPath),
                         StandardCharsets.UTF_8);
             }
             properties.remove(Constants.PROPERTY_CREDENTIAL);
