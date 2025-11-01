@@ -370,7 +370,7 @@
     </build>
 
     <properties>
-        <jersey.version>2.18</jersey.version>
+        <jersey.version>3.1.11</jersey.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jclouds.version>2.7.0</jclouds.version>
         <surefire.version>3.1.0</surefire.version>
